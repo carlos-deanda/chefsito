@@ -1,17 +1,11 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 
-const demoAccounts = [
-  { label: 'Admin', email: 'admin@chefsito.mx' },
-  { label: 'Cliente', email: 'mariana@demo.mx' },
-  { label: 'Recepcionista', email: 'recepcion@comalroma.mx' },
-  { label: 'Gerente', email: 'gerente@comalroma.mx' },
-  { label: 'Soporte', email: 'soporte@chefsito.mx' },
-]
-
-export default function LoginPage({ onGoRegister }) {
-  const { login } = useAuth()
+export default function RegisterPage({ onGoLogin }) {
+  const { register } = useAuth()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('password')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,7 +16,7 @@ export default function LoginPage({ onGoRegister }) {
     setLoading(true)
 
     try {
-      await login(email.trim(), password)
+      await register({ name, email, phone, password })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -30,27 +24,21 @@ export default function LoginPage({ onGoRegister }) {
     }
   }
 
-  function fillDemo(accountEmail) {
-    setEmail(accountEmail)
-    setPassword('password')
-    setError('')
-  }
-
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-semibold text-zinc-950">Chefsito</h1>
-          <p className="mt-2 text-sm text-zinc-500">Filas de espera para restaurantes</p>
+          <p className="mt-2 text-sm text-zinc-500">Crea tu cuenta de cliente</p>
         </div>
 
         <form
           className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
           onSubmit={handleSubmit}
         >
-          <h2 className="text-xl font-semibold text-zinc-950">Iniciar sesión</h2>
+          <h2 className="text-xl font-semibold text-zinc-950">Registrarse</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Personal: usa el correo y contraseña que te dio el administrador. Clientes: entra o crea cuenta.
+            Solo para clientes. El personal del restaurante recibe su cuenta del administrador.
           </p>
 
           {error && (
@@ -60,6 +48,16 @@ export default function LoginPage({ onGoRegister }) {
           )}
 
           <label className="mt-5 grid gap-1.5 text-sm font-medium text-zinc-700">
+            Nombre
+            <input
+              className="rounded-lg border border-zinc-300 px-3 py-2.5 outline-none ring-orange-500 focus:ring-2"
+              onChange={(e) => setName(e.target.value)}
+              required
+              value={name}
+            />
+          </label>
+
+          <label className="mt-4 grid gap-1.5 text-sm font-medium text-zinc-700">
             Email
             <input
               className="rounded-lg border border-zinc-300 px-3 py-2.5 outline-none ring-orange-500 focus:ring-2"
@@ -67,6 +65,16 @@ export default function LoginPage({ onGoRegister }) {
               required
               type="email"
               value={email}
+            />
+          </label>
+
+          <label className="mt-4 grid gap-1.5 text-sm font-medium text-zinc-700">
+            Teléfono
+            <input
+              className="rounded-lg border border-zinc-300 px-3 py-2.5 outline-none ring-orange-500 focus:ring-2"
+              onChange={(e) => setPhone(e.target.value)}
+              type="tel"
+              value={phone}
             />
           </label>
 
@@ -82,40 +90,24 @@ export default function LoginPage({ onGoRegister }) {
           </label>
 
           <button
-            className="mt-6 w-full rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="mt-6 w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
             disabled={loading}
             type="submit"
           >
-            {loading ? 'Entrando…' : 'Entrar'}
+            {loading ? 'Creando cuenta…' : 'Crear cuenta'}
           </button>
 
           <p className="mt-4 text-center text-sm text-zinc-600">
-            ¿Eres cliente y no tienes cuenta?{' '}
+            ¿Ya tienes cuenta?{' '}
             <button
               className="font-semibold text-orange-600 hover:text-orange-700"
-              onClick={onGoRegister}
+              onClick={onGoLogin}
               type="button"
             >
-              Regístrate aquí
+              Iniciar sesión
             </button>
           </p>
         </form>
-
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-zinc-700">Cuentas demo (contraseña: password)</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {demoAccounts.map((account) => (
-              <button
-                key={account.email}
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:border-orange-300 hover:bg-orange-50"
-                onClick={() => fillDemo(account.email)}
-                type="button"
-              >
-                {account.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </main>
   )
