@@ -36,6 +36,11 @@ psql -U postgres -d chefsito -f database/seed.sql
 
 3. Verifica la conexión levantando el servidor y visitando `GET /health`.
 
+## Cuentas y registro
+
+- **Clientes (`usuario`)**: se registran solos en la app → “Regístrate aquí”.
+- **Personal** (admin, recepcionista, gerente, soporte): los crea el **admin** desde su panel.
+
 ## Usuarios demo (contraseña: `password`)
 
 | Email | Rol |

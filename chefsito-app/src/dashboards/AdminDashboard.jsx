@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import { AppShell, MetricCard } from '../components/ui.jsx'
+import CreateStaffForm from '../components/CreateStaffForm.jsx'
 
 export default function AdminDashboard({ user, onLogout }) {
   const [overview, setOverview] = useState(null)
@@ -8,23 +9,25 @@ export default function AdminDashboard({ user, onLogout }) {
   const [restaurants, setRestaurants] = useState([])
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [ov, us, rs] = await Promise.all([
-          api('/admin/overview'),
-          api('/admin/users'),
-          api('/admin/restaurants'),
-        ])
-        setOverview(ov)
-        setUsers(us.users)
-        setRestaurants(rs.restaurants)
-      } catch (err) {
-        setError(err.message)
-      }
+  const load = useCallback(async () => {
+    try {
+      const [ov, us, rs] = await Promise.all([
+        api('/admin/overview'),
+        api('/admin/users'),
+        api('/admin/restaurants'),
+      ])
+      setOverview(ov)
+      setUsers(us.users)
+      setRestaurants(rs.restaurants)
+      setError('')
+    } catch (err) {
+      setError(err.message)
     }
-    load()
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   return (
     <AppShell
@@ -43,10 +46,14 @@ export default function AdminDashboard({ user, onLogout }) {
         </div>
       )}
 
+      <section className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+        <CreateStaffForm onCreated={load} restaurants={restaurants} />
+      </section>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
           <div className="border-b border-zinc-200 p-4">
-            <h2 className="font-semibold text-zinc-950">Usuarios</h2>
+            <h2 className="font-semibold text-zinc-950">Personal del sistema</h2>
           </div>
           <ul className="divide-y divide-zinc-100">
             {users.map((u) => (

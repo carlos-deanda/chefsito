@@ -83,6 +83,39 @@ router.get('/me', validateToken, async (req, res) => {
   }
 })
 
+router.post('/register', async (req, res) => {
+  const { name, email, phone, password = 'password' } = req.body
+
+  if (!name?.trim() || !email?.trim() || !password) {
+    return res.status(400).json({ message: 'Nombre, email y contraseña son requeridos' })
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    const result = await query(
+      `INSERT INTO users (name, email, phone, password_hash, role)
+       VALUES ($1, $2, $3, $4, 'usuario')
+       RETURNING id, name, email, phone, role`,
+      [name.trim(), email.trim().toLowerCase(), phone?.trim() ?? null, passwordHash],
+    )
+
+    const user = publicUser(result.rows[0])
+
+    return res.status(201).json({
+      user,
+      access_token: signToken(user),
+      message: 'Cuenta de cliente creada correctamente',
+    })
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe una cuenta con ese email' })
+    }
+    console.error('register error', error)
+    return res.status(500).json({ message: 'Error al crear la cuenta' })
+  }
+})
+
 router.post('/logout', validateToken, (_req, res) => {
   res.status(204).send()
 })
