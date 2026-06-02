@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
-
-const demoAccounts = [
-  { label: 'Admin', email: 'admin@chefsito.mx' },
-  { label: 'Cliente', email: 'mariana@demo.mx' },
-  { label: 'Recepcionista', email: 'recepcion@comalroma.mx' },
-  { label: 'Gerente', email: 'gerente@comalroma.mx' },
-  { label: 'Soporte', email: 'soporte@chefsito.mx' },
-]
+import AuthLayout from '../components/auth/AuthLayout.jsx'
+import DemoAccounts from '../components/auth/DemoAccounts.jsx'
+import { AuthButton, AuthDivider, AuthField, PasswordToggle } from '../components/auth/AuthField.jsx'
 
 export default function LoginPage({ onGoRegister }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('password')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -37,86 +33,56 @@ export default function LoginPage({ onGoRegister }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-semibold text-zinc-950">Chefsito</h1>
-          <p className="mt-2 text-sm text-zinc-500">Filas de espera para restaurantes</p>
-        </div>
+    <AuthLayout>
+      <h1 className="text-center text-3xl font-bold text-white">Iniciar sesión</h1>
 
-        <form
-          className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
-          onSubmit={handleSubmit}
+      <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        {error && (
+          <p className="rounded-xl bg-red-500/10 px-3 py-2 text-center text-sm text-red-400 ring-1 ring-red-500/30">
+            {error}
+          </p>
+        )}
+
+        <AuthField
+          id="email"
+          label="Email"
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="username@gmail.com"
+          required
+          type="email"
+          value={email}
+        />
+
+        <AuthField
+          id="password"
+          label="Contraseña"
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Contraseña"
+          required
+          trailing={
+            <PasswordToggle onToggle={() => setShowPassword((v) => !v)} visible={showPassword} />
+          }
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+        />
+
+        <AuthButton loading={loading}>{loading ? 'Entrando…' : 'Entrar'}</AuthButton>
+      </form>
+
+      <AuthDivider>o prueba con</AuthDivider>
+
+      <DemoAccounts onSelect={fillDemo} />
+
+      <p className="mt-8 text-center text-sm text-zinc-400">
+        ¿No tienes cuenta?{' '}
+        <button
+          className="font-semibold text-white underline-offset-2 hover:text-orange-400 hover:underline"
+          onClick={onGoRegister}
+          type="button"
         >
-          <h2 className="text-xl font-semibold text-zinc-950">Iniciar sesión</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Personal: usa el correo y contraseña que te dio el administrador. Clientes: entra o crea cuenta.
-          </p>
-
-          {error && (
-            <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
-              {error}
-            </p>
-          )}
-
-          <label className="mt-5 grid gap-1.5 text-sm font-medium text-zinc-700">
-            Email
-            <input
-              className="rounded-lg border border-zinc-300 px-3 py-2.5 outline-none ring-orange-500 focus:ring-2"
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-
-          <label className="mt-4 grid gap-1.5 text-sm font-medium text-zinc-700">
-            Contraseña
-            <input
-              className="rounded-lg border border-zinc-300 px-3 py-2.5 outline-none ring-orange-500 focus:ring-2"
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-
-          <button
-            className="mt-6 w-full rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
-            disabled={loading}
-            type="submit"
-          >
-            {loading ? 'Entrando…' : 'Entrar'}
-          </button>
-
-          <p className="mt-4 text-center text-sm text-zinc-600">
-            ¿Eres cliente y no tienes cuenta?{' '}
-            <button
-              className="font-semibold text-orange-600 hover:text-orange-700"
-              onClick={onGoRegister}
-              type="button"
-            >
-              Regístrate aquí
-            </button>
-          </p>
-        </form>
-
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-medium text-zinc-700">Cuentas demo (contraseña: password)</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {demoAccounts.map((account) => (
-              <button
-                key={account.email}
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:border-orange-300 hover:bg-orange-50"
-                onClick={() => fillDemo(account.email)}
-                type="button"
-              >
-                {account.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </main>
+          Regístrate gratis
+        </button>
+      </p>
+    </AuthLayout>
   )
 }
