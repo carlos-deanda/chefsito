@@ -1,19 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
-
-// 1. IMPORTAR ESTILOS Y REPARAR MARCADOR INVISIBLE
-// Leaflet necesita sus estilos CSS para no romperse.
 import 'leaflet/dist/leaflet.css'
 
-// Creamos un contenedor invisible para poder meter código HTML/Tailwind dentro del Pin de Leaflet
+// 1. Diseño del Pin personalizado con Tailwind
 const createCustomIcon = (restaurantName, isSelected) => {
-  const initials = restaurantName
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-
+  const initials = restaurantName.split(' ').map((word) => word[0]).join('').slice(0, 2)
   const activeClasses = isSelected
     ? 'border-orange-400 bg-white text-zinc-950 ring-4 ring-orange-200 scale-110 z-[1000]'
     : 'border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:text-zinc-950'
@@ -27,56 +19,96 @@ const createCustomIcon = (restaurantName, isSelected) => {
         <span class="text-[10px] font-semibold leading-tight truncate max-w-[80px] text-center">${restaurantName}</span>
       </div>
     `,
-    className: 'custom-leaflet-marker', // Quitamos los estilos por defecto de Leaflet
+    className: 'custom-leaflet-marker',
     iconAnchor: [0, 0],
   })
 }
 
-// 2. COMPONENTE PARA ANIMAR EL MAPA (Efecto FlyTo de OpenStreetMap)
-function RecenterMap({ lat, lng }) {
+// Icono azul especial para marcar DÓNDE ESTÁS TÚ en el mapa
+const userIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+})
+
+// Componente auxiliar que mueve la cámara del mapa suavemente
+function ChangeMapCamera({ center, zoom }) {
   const map = useMap()
   useEffect(() => {
-    if (lat && lng) {
-      map.flyTo([lat, lng], 15, {
-        animate: true,
-        duration: 1.5, // Duración de la animación en segundos
-      })
+    if (center) {
+      map.flyTo(center, zoom, { animate: true, duration: 1.5 })
     }
-  }, [lat, lng, map])
+  }, [center, zoom, map])
   return null
 }
 
 export default function MapaRestaurantes({ restaurants, selectedRestaurantId, onSelectRestaurant }) {
-  
-  // Coordenadas del centro inicial (basado en tu primer restaurante)
-  const center = useMemo(() => {
-    if (restaurants.length > 0) {
-      return [Number(restaurants[0].lat), Number(restaurants[0].lng)]
-    }
-    return [19.4326, -99.1332] // CDMX por defecto
-  }, [restaurants])
+  // Estado para guardar las coordenadas reales del usuario [lat, lng]
+  const [userLocation, setUserLocation] = useState(null)
 
+  // 2. EFECTO PARA SOLICITAR LA UBICACIÓN REAL DEL NAVEGADOR
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // Si el usuario acepta el permiso, guardamos sus coordenadas reales
+          setUserLocation([position.coords.latitude, position.coords.longitude])
+        },
+        (error) => {
+          console.error("Error obteniendo la geolocalización o permiso denegado:", error)
+        },
+        { enableHighAccuracy: true } // Fuerza a usar el GPS del dispositivo si está disponible
+      )
+    }
+  }, [])
+
+  // 3. CENTRO INICIAL DINÁMICO
+  // Si ya tenemos tu ubicación real, el mapa arranca ahí. Si no, usa el primer restaurante o CDMX.
+  const defaultCenter = useMemo(() => {
+    if (userLocation) return userLocation
+    if (restaurants.length > 0) return [Number(restaurants[0].lat), Number(restaurants[0].lng)]
+    return [19.4326, -99.1332]
+  }, [userLocation, restaurants])
+
+  // Buscar si el usuario seleccionó un restaurante de la lista lateral para mover la cámara hacia allá
   const selectedRestaurant = restaurants.find((r) => r.id === selectedRestaurantId)
+
+  // Decidir hacia dónde debe apuntar la cámara en cada momento
+  const cameraTarget = useMemo(() => {
+    if (selectedRestaurant) return [Number(selectedRestaurant.lat), Number(selectedRestaurant.lng)]
+    if (userLocation) return userLocation
+    return null
+  }, [selectedRestaurant, userLocation])
 
   return (
     <MapContainer
-      center={center}
+      center={defaultCenter}
       zoom={14}
       style={{ width: '100%', height: '100%' }}
       zoomControl={true}
     >
-      {/* 3. TILE LAYER: Usamos el estilo de CartoDB (Positron) que es un gris claro minimalista y súper elegante */}
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         url="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
 
-      {/* Manejador de animación al cambiar de restaurante */}
-      {selectedRestaurant && (
-        <RecenterMap lat={Number(selectedRestaurant.lat)} lng={Number(selectedRestaurant.lng)} />
+      {/* Controlador automático de la cámara del mapa */}
+      {cameraTarget && (
+        <ChangeMapCamera center={cameraTarget} zoom={selectedRestaurant ? 16 : 14} />
       )}
 
-      {/* 4. RENDER DE MARCADORES */}
+      {/* 4. PIN DE TU UBICACIÓN ACTUAL REAL */}
+      {userLocation && (
+        <Marker position={userLocation} icon={userIcon}>
+          {/* El globo que sale si le das clic a tu propio marcador */}
+          <div className="leaflet-popup-content-wrapper">
+            <div className="p-1 text-xs font-bold text-zinc-950">¡Estás aquí!</div>
+          </div>
+        </Marker>
+      )}
+
+      {/* 5. RENDER DE LOS RESTAURANTES */}
       {restaurants.map((restaurant) => {
         const isSelected = restaurant.id === selectedRestaurantId
 
@@ -93,4 +125,4 @@ export default function MapaRestaurantes({ restaurants, selectedRestaurantId, on
       })}
     </MapContainer>
   )
-}
+} 

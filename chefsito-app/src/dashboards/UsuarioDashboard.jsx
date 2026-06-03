@@ -31,12 +31,15 @@ export default function UsuarioDashboard({ user, onLogout }) {
       const data = await fetchDashboardData()
       setRestaurants(data.restaurants)
       setMyEntry(data.myEntry)
+      
+      // CORRECCIÓN: Al recargar datos, si no había un restaurante seleccionado por el usuario, se queda en null
       setSelectedRestaurantId((current) => {
         if (current && data.restaurants.some((restaurant) => restaurant.id === current)) {
           return current
         }
-        return data.restaurants[0]?.id ?? null
+        return null 
       })
+      
       setError('')
     } catch (err) {
       setError(err.message)
@@ -56,7 +59,10 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
-        setSelectedRestaurantId(data.restaurants[0]?.id ?? null)
+        
+        // CORRECCIÓN: Al iniciar por primera vez, no auto-seleccionamos ninguno para que el mapa vaya a tu ubicación
+        setSelectedRestaurantId(null)
+        
         setError('')
       } catch (err) {
         if (!cancelled) {
@@ -76,8 +82,9 @@ export default function UsuarioDashboard({ user, onLogout }) {
     }
   }, [])
 
+  // CORRECCIÓN: Quitamos el "salvavidas" que forzaba el primer restaurante si el ID era null
   const selectedRestaurant = useMemo(
-    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? restaurants[0] ?? null,
+    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
     [restaurants, selectedRestaurantId],
   )
 
@@ -139,7 +146,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Restaurantes</p>
-              <p className="mt-2 text-3xl font-semibold">{restaurants.length || '3+'}</p>
+              <p className="mt-2 text-3xl font-semibold">{restaurants.length || '0'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Tu estado</p>
@@ -279,14 +286,16 @@ export default function UsuarioDashboard({ user, onLogout }) {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-sm text-zinc-500">
-                    No hay restaurantes para mostrar. Revisa que el backend esté corriendo y que el usuario tenga acceso a la ruta de restaurantes.
+                  // MENSAJE INICIAL ELEGANTE: Cuando no hay ningún restaurante seleccionado todavía
+                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+                    <p className="font-semibold text-zinc-700">Explora el mapa</p>
+                    <p className="mt-1">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
                   </div>
                 )}
 
                 {restaurants.length > 0 && (
                   <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                    <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista rápida</h5>
+                    <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista completa de locales</h5>
                     <div className="mt-3 space-y-3">
                       {restaurants.map((restaurant) => (
                         <button
