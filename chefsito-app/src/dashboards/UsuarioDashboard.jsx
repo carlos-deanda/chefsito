@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client.js'
-import { AppShell, MetricCard, StatusBadge } from '../components/ui.jsx'
+// Se quitó MetricCard y StatusBadge de aquí para evitar el conflicto de duplicados
+import { AppShell } from '../components/ui.jsx'
+// Importación del mapa corregida
+import MapaRestaurantes from '../components/MapaRestaurantes.jsx'
 
 export default function UsuarioDashboard({ user, onLogout }) {
   const [restaurants, setRestaurants] = useState([])
@@ -28,12 +31,15 @@ export default function UsuarioDashboard({ user, onLogout }) {
       const data = await fetchDashboardData()
       setRestaurants(data.restaurants)
       setMyEntry(data.myEntry)
+      
+      // CORRECCIÓN: Al recargar datos, si no había un restaurante seleccionado por el usuario, se queda en null
       setSelectedRestaurantId((current) => {
         if (current && data.restaurants.some((restaurant) => restaurant.id === current)) {
           return current
         }
-        return data.restaurants[0]?.id ?? null
+        return null 
       })
+      
       setError('')
     } catch (err) {
       setError(err.message)
@@ -53,7 +59,10 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
-        setSelectedRestaurantId(data.restaurants[0]?.id ?? null)
+        
+        // CORRECCIÓN: Al iniciar por primera vez, no auto-seleccionamos ninguno para que el mapa vaya a tu ubicación
+        setSelectedRestaurantId(null)
+        
         setError('')
       } catch (err) {
         if (!cancelled) {
@@ -73,36 +82,11 @@ export default function UsuarioDashboard({ user, onLogout }) {
     }
   }, [])
 
+  // CORRECCIÓN: Quitamos el "salvavidas" que forzaba el primer restaurante si el ID era null
   const selectedRestaurant = useMemo(
-    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? restaurants[0] ?? null,
+    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
     [restaurants, selectedRestaurantId],
   )
-
-  const mapPoints = useMemo(() => {
-    if (restaurants.length === 0) {
-      return []
-    }
-
-    const latitudes = restaurants.map((restaurant) => Number(restaurant.lat))
-    const longitudes = restaurants.map((restaurant) => Number(restaurant.lng))
-    const minLat = Math.min(...latitudes)
-    const maxLat = Math.max(...latitudes)
-    const minLng = Math.min(...longitudes)
-    const maxLng = Math.max(...longitudes)
-    const latSpan = maxLat - minLat || 1
-    const lngSpan = maxLng - minLng || 1
-
-    return restaurants.map((restaurant) => {
-      const x = ((Number(restaurant.lng) - minLng) / lngSpan) * 100
-      const y = (1 - (Number(restaurant.lat) - minLat) / latSpan) * 100
-
-      return {
-        ...restaurant,
-        x: 12 + x * 0.76,
-        y: 12 + y * 0.76,
-      }
-    })
-  }, [restaurants])
 
   async function joinQueue(restaurantId) {
     try {
@@ -162,7 +146,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Restaurantes</p>
-              <p className="mt-2 text-3xl font-semibold">{restaurants.length || '3+'}</p>
+              <p className="mt-2 text-3xl font-semibold">{restaurants.length || '0'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Tu estado</p>
@@ -206,40 +190,12 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
             <div className="grid gap-0 lg:grid-cols-[1.45fr_0.9fr]">
               <div className="border-b border-zinc-200 p-4 lg:border-b-0 lg:border-r">
-                <div className="relative h-105 overflow-hidden rounded-3xl border border-zinc-200 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_30%),linear-gradient(135deg,#f8fafc,#eef2ff_55%,#fff7ed)] p-4 shadow-inner">
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-size-[48px_48px]" />
-                  <div className="absolute inset-6 rounded-4xl border border-white/60" />
-                  <div className="absolute inset-x-10 top-8 h-24 rounded-full bg-white/35 blur-3xl" />
-
-                  {mapPoints.map((restaurant) => {
-                    const isSelected = restaurant.id === selectedRestaurant?.id
-                    return (
-                      <button
-                        key={restaurant.id}
-                        className={`absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-full border px-3 py-2 text-left shadow-lg transition ${
-                          isSelected
-                            ? 'border-orange-400 bg-white text-zinc-950 ring-4 ring-orange-200'
-                            : 'border-white/80 bg-white/95 text-zinc-700 hover:translate-y-[-52%] hover:border-orange-300 hover:text-zinc-950'
-                        }`}
-                        onClick={() => handleSelectRestaurant(restaurant.id)}
-                        style={{ left: `${restaurant.x}%`, top: `${restaurant.y}%` }}
-                        type="button"
-                      >
-                        <span className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${isSelected ? 'bg-[#f15a24] text-white' : 'bg-zinc-950 text-white'}`}>
-                          {restaurant.name
-                            .split(' ')
-                            .map((word) => word[0])
-                            .join('')
-                            .slice(0, 2)}
-                        </span>
-                        <span className="max-w-35 text-xs font-semibold leading-tight">{restaurant.name}</span>
-                      </button>
-                    )
-                  })}
-
-                  <div className="absolute right-4 bottom-4 rounded-2xl border border-white/70 bg-white/85 px-4 py-3 text-xs text-zinc-600 shadow-md backdrop-blur">
-                    Haz clic en un restaurante para ver su información.
-                  </div>
+                <div className="relative z-0 h-105 overflow-hidden rounded-3xl border border-zinc-200 shadow-inner">
+                  <MapaRestaurantes 
+                    restaurants={restaurants}
+                    selectedRestaurantId={selectedRestaurant?.id}
+                    onSelectRestaurant={handleSelectRestaurant}
+                  />
                 </div>
               </div>
 
@@ -330,14 +286,16 @@ export default function UsuarioDashboard({ user, onLogout }) {
                     </div>
                   </>
                 ) : (
-                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-sm text-zinc-500">
-                    No hay restaurantes para mostrar. Revisa que el backend esté corriendo y que el usuario tenga acceso a la ruta de restaurantes.
+                  // MENSAJE INICIAL ELEGANTE: Cuando no hay ningún restaurante seleccionado todavía
+                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+                    <p className="font-semibold text-zinc-700">Explora el mapa</p>
+                    <p className="mt-1">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
                   </div>
                 )}
 
                 {restaurants.length > 0 && (
                   <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                    <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista rápida</h5>
+                    <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista completa de locales</h5>
                     <div className="mt-3 space-y-3">
                       {restaurants.map((restaurant) => (
                         <button
@@ -404,5 +362,42 @@ export default function UsuarioDashboard({ user, onLogout }) {
         </section>
       )}
     </AppShell>
+  )
+}
+
+const statusStyles = {
+  open: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  paused: 'bg-amber-50 text-amber-700 ring-amber-200',
+  closed: 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+}
+
+const statusLabel = {
+  open: 'Abierto',
+  paused: 'Pausado',
+  closed: 'Cerrado',
+}
+
+const roleLabel = {
+  admin: 'Administrador',
+  usuario: 'Cliente',
+  recepcionista: 'Recepcionista',
+  gerente: 'Gerente',
+  soporte: 'Soporte',
+}
+
+export function MetricCard({ label, value }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+      <p className="text-sm font-medium text-zinc-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-zinc-950">{value}</p>
+    </div>
+  )
+}
+
+export function StatusBadge({ status }) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusStyles[status] ?? statusStyles.closed}`}>
+      {statusLabel[status] ?? status}
+    </span>
   )
 }

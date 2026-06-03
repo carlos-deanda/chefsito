@@ -31,13 +31,13 @@ INSERT INTO users (id, name, email, phone, password_hash, role) VALUES
   ('a0000000-0000-4000-8000-000000000008', 'Ana Recepcion Nori','recepcion@noricondesa.mx', '+525511110008', '$2b$10$EixZaYVK1fsbw1ZfbXOXMOuIp2Z04ogFB/errFyfgMXXKyEtj6B2u', 'recepcionista');
 
 -- ---------------------------------------------------------------------------
--- Restaurantes (datos del mockup)
+-- Restaurantes (Ubicaciones reales alrededor del Tec Campus Guadalajara)
 -- ---------------------------------------------------------------------------
 
 INSERT INTO restaurants (id, name, cuisine, address, lat, lng, table_count, status, estimated_wait_minutes, manager_id) VALUES
-  ('b0000000-0000-4000-8000-000000000001', 'Comal Roma',   'Mexicana', 'Orizaba 86, Roma Norte',      19.4189000, -99.1611000, 18, 'open',   18, 'a0000000-0000-4000-8000-000000000005'),
-  ('b0000000-0000-4000-8000-000000000002', 'Nori Condesa', 'Japonesa', 'Amsterdam 214, Condesa',     19.4114000, -99.1715000, 12, 'paused', 26, NULL),
-  ('b0000000-0000-4000-8000-000000000003', 'Brasa Norte',  'Parrilla', 'Masaryk 330, Polanco',       19.4327000, -99.1940000, 20, 'open',   12, NULL);
+  ('b0000000-0000-4000-8000-000000000001', 'Los Chilaquiles Tec GDL', 'Mexicana',  'Av. General Ramón Corona 2500, Zapopan, Jal.', 20.7342000, -103.4565000, 18, 'open',   18, 'a0000000-0000-4000-8000-000000000005'),
+  ('b0000000-0000-4000-8000-000000000002', 'Burritos Universitaria',  'Tex-Mex',   'Av. Aviación 142, San Juan de Ocotán, Zapopan',20.7295000, -103.4518000, 12, 'paused', 26, NULL),
+  ('b0000000-0000-4000-8000-000000000003', 'Sushi N Boru Valle Real', 'Asiática',  'Av. Santa Margarita 4100, Plaza Real, Zapopan',20.7381000, -103.4492000, 20, 'open',   12, NULL);
 
 INSERT INTO restaurant_staff (restaurant_id, user_id) VALUES
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000004'),
@@ -45,7 +45,7 @@ INSERT INTO restaurant_staff (restaurant_id, user_id) VALUES
   ('b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000008');
 
 -- ---------------------------------------------------------------------------
--- Fila de espera activa (Comal Roma)
+-- Fila de espera activa (Conectada a: Los Chilaquiles Tec GDL)
 -- ---------------------------------------------------------------------------
 
 INSERT INTO waitlist_entries (id, restaurant_id, user_id, party_size, status, position, registered_at) VALUES
@@ -67,8 +67,8 @@ INSERT INTO waitlist_entries (restaurant_id, user_id, party_size, status, positi
 -- ---------------------------------------------------------------------------
 
 INSERT INTO notifications (waitlist_entry_id, user_id, channel, message, status) VALUES
-  ('c0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000002', 'whatsapp', 'Tu mesa en Nori Condesa está lista. Tienes 5 minutos para presentarte.', 'sent'),
-  ('c0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'push',     'Estás en posición #1 en Comal Roma. Espera estimada: 8 min.', 'sent');
+  ('c0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000002', 'whatsapp', 'Tu mesa en Burritos Universitaria está lista. Tienes 5 minutos para presentarte.', 'sent'),
+  ('c0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'push',     'Estás en posición #1 en Los Chilaquiles Tec GDL. Espera estimada: 8 min.', 'sent');
 
 -- ---------------------------------------------------------------------------
 -- Analítica (reporte del mockup)
