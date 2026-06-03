@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client.js'
+import { IconStore } from './admin/AdminIcons.jsx'
 
 const initialForm = {
   name: '',
@@ -18,6 +19,11 @@ const statusOptions = [
   { value: 'paused', label: 'Pausado' },
   { value: 'closed', label: 'Cerrado' },
 ]
+
+const inputClass =
+  'w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100'
+
+const labelClass = 'text-sm font-medium text-zinc-700'
 
 export default function CreateRestaurantForm({ managers = [], onCreated }) {
   const [form, setForm] = useState(initialForm)
@@ -62,8 +68,13 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
   }
 
   return (
-    <form className="grid gap-3" onSubmit={handleSubmit}>
-      <h3 className="font-semibold text-zinc-950">Registrar restaurante</h3>
+    <form className="grid gap-4" onSubmit={handleSubmit}>
+      <div className="flex items-center gap-2">
+        <span className="text-orange-600">
+          <IconStore />
+        </span>
+        <h3 className="text-lg font-semibold text-zinc-950">Registrar restaurante</h3>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
@@ -72,63 +83,68 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
         <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Nombre
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Nombre</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             onChange={(e) => updateField('name', e.target.value)}
+            placeholder="Ej. Sushi N Boru"
             required
             value={form.name}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Tipo de cocina
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Tipo de cocina</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             onChange={(e) => updateField('cuisine', e.target.value)}
+            placeholder="Ej. Japonesa"
             value={form.cuisine}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700 sm:col-span-2">
-          Direccion
+        <label className="grid gap-1.5 sm:col-span-2">
+          <span className={labelClass}>Dirección</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             onChange={(e) => updateField('address', e.target.value)}
+            placeholder="Calle, Número, Colonia"
             required
             value={form.address}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Latitud
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Latitud</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             max="90"
             min="-90"
             onChange={(e) => updateField('lat', e.target.value)}
+            placeholder="20.67"
             required
             step="0.0000001"
             type="number"
             value={form.lat}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Longitud
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Longitud</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             max="180"
             min="-180"
             onChange={(e) => updateField('lng', e.target.value)}
+            placeholder="-103.34"
             required
             step="0.0000001"
             type="number"
             value={form.lng}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Mesas
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Mesas</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             min="1"
             onChange={(e) => updateField('tableCount', e.target.value)}
             required
@@ -136,10 +152,10 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
             value={form.tableCount}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Espera estimada
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Espera estimada (min)</span>
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             min="0"
             onChange={(e) => updateField('estimatedWaitMinutes', e.target.value)}
             required
@@ -147,10 +163,10 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
             value={form.estimatedWaitMinutes}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Estado
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Estado</span>
           <select
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             onChange={(e) => updateField('status', e.target.value)}
             value={form.status}
           >
@@ -159,10 +175,10 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium text-zinc-700">
-          Gerente
+        <label className="grid gap-1.5">
+          <span className={labelClass}>Gerente</span>
           <select
-            className="rounded-lg border border-zinc-300 px-3 py-2"
+            className={inputClass}
             onChange={(e) => updateField('managerId', e.target.value)}
             value={form.managerId}
           >
@@ -175,11 +191,11 @@ export default function CreateRestaurantForm({ managers = [], onCreated }) {
       </div>
 
       <button
-        className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
+        className="w-full rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
         disabled={loading}
         type="submit"
       >
-        {loading ? 'Registrando...' : 'Registrar restaurante'}
+        {loading ? 'Registrando…' : 'Registrar restaurante'}
       </button>
     </form>
   )

@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client.js'
-import { AppShell, MetricCard, StatusBadge } from '../components/ui.jsx'
-import CreateStaffForm from '../components/CreateStaffForm.jsx'
-import CreateRestaurantForm from '../components/CreateRestaurantForm.jsx'
+import AdminLayout from '../components/admin/AdminLayout.jsx'
+import AdminAnalyticsPage from '../components/admin/views/AdminAnalyticsPage.jsx'
+import AdminDashboardHome from '../components/admin/views/AdminDashboardHome.jsx'
+import AdminRestaurantesPage from '../components/admin/views/AdminRestaurantesPage.jsx'
+import AdminStaffPage from '../components/admin/views/AdminStaffPage.jsx'
 
 export default function AdminDashboard({ user, onLogout }) {
   const [overview, setOverview] = useState(null)
   const [users, setUsers] = useState([])
   const [restaurants, setRestaurants] = useState([])
+  const [restaurantStats, setRestaurantStats] = useState([])
   const [error, setError] = useState('')
+  const [activeSection, setActiveSection] = useState('dashboard')
 
   const load = useCallback(async () => {
     try {
@@ -21,6 +25,18 @@ export default function AdminDashboard({ user, onLogout }) {
       setUsers(us.users)
       setRestaurants(rs.restaurants)
       setError('')
+
+      const stats = await Promise.all(
+        rs.restaurants.map(async (restaurant) => {
+          try {
+            const daily = await api(`/analytics/${restaurant.id}/daily`)
+            return { restaurant, stats: daily }
+          } catch {
+            return { restaurant, stats: null }
+          }
+        }),
+      )
+      setRestaurantStats(stats)
     } catch (err) {
       setError(err.message)
     }
@@ -32,73 +48,60 @@ export default function AdminDashboard({ user, onLogout }) {
 
   const managers = users.filter((u) => u.role === 'gerente')
 
+  function navigate(section) {
+    setActiveSection(section)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function renderPage() {
+    switch (activeSection) {
+      case 'restaurantes':
+        return (
+          <AdminRestaurantesPage
+            managers={managers}
+            onCreated={load}
+            restaurants={restaurants}
+          />
+        )
+      case 'staff':
+        return (
+          <AdminStaffPage
+            onCreated={load}
+            restaurants={restaurants}
+            users={users}
+          />
+        )
+      case 'analytics':
+        return (
+          <AdminAnalyticsPage
+            overview={overview}
+            restaurantStats={restaurantStats}
+          />
+        )
+      case 'dashboard':
+      default:
+        return (
+          <AdminDashboardHome
+            onNavigate={navigate}
+            overview={overview}
+            restaurants={restaurants}
+            users={users}
+          />
+        )
+    }
+  }
+
   return (
-    <AppShell
+    <AdminLayout
+      activeSection={activeSection}
       onLogout={onLogout}
-      subtitle="Panel de administración global"
-      title="Admin"
+      onNavigate={navigate}
       user={user}
     >
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
-
-      {overview && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <MetricCard label="Usuarios activos" value={overview.users_count} />
-          <MetricCard label="Restaurantes" value={overview.restaurants_count} />
-          <MetricCard label="En fila ahora" value={overview.active_waitlist_count} />
-        </div>
+      {error && (
+        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       )}
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <CreateRestaurantForm managers={managers} onCreated={load} />
-        </section>
-
-        <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-          <CreateStaffForm onCreated={load} restaurants={restaurants} />
-        </section>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-200 p-4">
-            <h2 className="font-semibold text-zinc-950">Personal del sistema</h2>
-          </div>
-          <ul className="divide-y divide-zinc-100">
-            {users.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                <div>
-                  <p className="font-medium text-zinc-950">{u.name}</p>
-                  <p className="text-zinc-500">{u.email}</p>
-                </div>
-                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold capitalize">
-                  {u.role}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <div className="border-b border-zinc-200 p-4">
-            <h2 className="font-semibold text-zinc-950">Restaurantes</h2>
-          </div>
-          <ul className="divide-y divide-zinc-100">
-            {restaurants.map((r) => (
-              <li key={r.id} className="p-4 text-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-zinc-950">{r.name}</p>
-                  <StatusBadge status={r.status} />
-                </div>
-                <p className="mt-1 text-zinc-500">{r.address}</p>
-                <p className="mt-1 text-zinc-600">
-                  {r.people_waiting} en fila · {r.table_count} mesas · {r.estimated_wait_minutes} min · Gerente: {r.manager_name ?? '—'}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-    </AppShell>
+      {renderPage()}
+    </AdminLayout>
   )
 }

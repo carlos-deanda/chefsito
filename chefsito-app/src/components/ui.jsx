@@ -18,22 +18,34 @@ const roleLabel = {
   soporte: 'Soporte',
 }
 
-export function MetricCard({ label, value }) {
+export function MetricCard({ label, value, icon }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-950">{value}</p>
+    <div className="flex items-center gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+      {icon && (
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+          {icon}
+        </div>
+      )}
+      <div>
+        <p className="text-sm font-medium text-zinc-500">{label}</p>
+        <p className="mt-1 text-2xl font-bold text-zinc-950">{value ?? '—'}</p>
+      </div>
     </div>
   )
 }
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, uppercase = false }) {
+  const label = statusLabel[status] ?? status
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusStyles[status] ?? statusStyles.closed}`}>
-      {statusLabel[status] ?? status}
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold ring-1 ${statusStyles[status] ?? statusStyles.closed} ${uppercase ? 'uppercase tracking-wide' : ''}`}
+    >
+      {label}
     </span>
   )
 }
+
+export { roleLabel }
 
 export function AppShell({ user, onLogout, title, subtitle, children }) {
   return (
