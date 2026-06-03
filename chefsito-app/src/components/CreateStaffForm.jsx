@@ -20,6 +20,8 @@ export default function CreateStaffForm({ restaurants, onCreated }) {
   const [loading, setLoading] = useState(false)
 
   const needsRestaurant = role === 'recepcionista' || role === 'gerente'
+  const selectedRestaurantExists = restaurants.some((restaurant) => restaurant.id === restaurantId)
+  const effectiveRestaurantId = selectedRestaurantExists ? restaurantId : restaurants[0]?.id ?? ''
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -30,7 +32,7 @@ export default function CreateStaffForm({ restaurants, onCreated }) {
     try {
       const body = { name, email, phone, role, password }
       if (needsRestaurant) {
-        body.restaurant_id = restaurantId
+        body.restaurant_id = effectiveRestaurantId
       }
 
       const data = await api('/admin/users', {
@@ -124,8 +126,9 @@ export default function CreateStaffForm({ restaurants, onCreated }) {
             className="rounded-lg border border-zinc-300 px-3 py-2"
             onChange={(e) => setRestaurantId(e.target.value)}
             required
-            value={restaurantId}
+            value={effectiveRestaurantId}
           >
+            {restaurants.length === 0 && <option value="">No hay restaurantes</option>}
             {restaurants.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
@@ -135,7 +138,7 @@ export default function CreateStaffForm({ restaurants, onCreated }) {
 
       <button
         className="rounded-lg bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
-        disabled={loading}
+        disabled={loading || (needsRestaurant && restaurants.length === 0)}
         type="submit"
       >
         {loading ? 'Creando…' : 'Crear cuenta'}
