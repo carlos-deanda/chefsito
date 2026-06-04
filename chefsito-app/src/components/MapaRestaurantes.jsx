@@ -3,17 +3,41 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-// 1. Diseño del Pin personalizado con Tailwind
-const createCustomIcon = (restaurantName, isSelected) => {
+// 1. Diseño del Pin personalizado con Tailwind y color-code por estado
+const createCustomIcon = (restaurantName, status, isSelected) => {
   const initials = restaurantName.split(' ').map((word) => word[0]).join('').slice(0, 2)
+  
+  // Estilos según el estado (open, paused, closed)
+  const colors = {
+    open: {
+      badge: 'bg-emerald-500 text-white',
+      selectedBorder: 'border-emerald-500 ring-4 ring-emerald-100',
+      normalBorder: 'border-emerald-200 hover:border-emerald-400 hover:text-emerald-950',
+    },
+    paused: {
+      badge: 'bg-amber-500 text-white',
+      selectedBorder: 'border-amber-500 ring-4 ring-amber-100',
+      normalBorder: 'border-amber-200 hover:border-amber-400 hover:text-amber-950',
+    },
+    closed: {
+      badge: 'bg-rose-500 text-white',
+      selectedBorder: 'border-rose-500 ring-4 ring-rose-100',
+      normalBorder: 'border-rose-200 hover:border-rose-400 hover:text-rose-950',
+    }
+  }[status] || {
+    badge: 'bg-zinc-500 text-white',
+    selectedBorder: 'border-zinc-500 ring-4 ring-zinc-100',
+    normalBorder: 'border-zinc-200 hover:border-zinc-400 hover:text-zinc-950',
+  }
+
   const activeClasses = isSelected
-    ? 'border-orange-400 bg-white text-zinc-950 ring-4 ring-orange-200 scale-110 z-[1000]'
-    : 'border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:text-zinc-950'
+    ? `${colors.selectedBorder} bg-white text-zinc-950 scale-110 z-[1000]`
+    : `${colors.normalBorder} bg-white text-zinc-700 hover:shadow-lg`
 
   return L.divIcon({
     html: `
       <div class="flex flex-col items-center gap-1 rounded-full border px-3 py-1.5 shadow-md transition-all ${activeClasses}" style="transform: translate(-50%, -100%); min-width: 90px;">
-        <span class="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold ${isSelected ? 'bg-[#f15a24] text-white' : 'bg-zinc-950 text-white'}">
+        <span class="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold ${colors.badge}">
           ${initials}
         </span>
         <span class="text-[10px] font-semibold leading-tight truncate max-w-[80px] text-center">${restaurantName}</span>
@@ -116,7 +140,7 @@ export default function MapaRestaurantes({ restaurants, selectedRestaurantId, on
           <Marker
             key={restaurant.id}
             position={[Number(restaurant.lat), Number(restaurant.lng)]}
-            icon={createCustomIcon(restaurant.name, isSelected)}
+            icon={createCustomIcon(restaurant.name, restaurant.status, isSelected)}
             eventHandlers={{
               click: () => onSelectRestaurant(restaurant.id),
             }}
