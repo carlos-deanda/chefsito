@@ -1,12 +1,13 @@
 import { Router } from 'express'
-import { query } from '../db/pool.js'
 import { validateToken, requireRoles } from '../middleware/auth.js'
 import { assertRestaurantAccess } from '../services/staff.js'
+import { getDailyAnalytics, getHourlyAnalytics } from '../services/analytics.js'
+import { getReportDate } from '../utils/reportDate.js'
 
 const router = Router()
 
 router.get('/:restaurant_id/daily', validateToken, requireRoles('gerente', 'admin', 'soporte'), async (req, res) => {
-  const date = req.query.date ?? new Date().toISOString().slice(0, 10)
+  const date = req.query.date ?? getReportDate()
 
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'soporte') {
@@ -16,26 +17,7 @@ router.get('/:restaurant_id/daily', validateToken, requireRoles('gerente', 'admi
       }
     }
 
-    const result = await query(
-      `SELECT restaurant_id, report_date, total_entries, no_shows, avg_wait_minutes, peak_hour
-       FROM daily_analytics
-       WHERE restaurant_id = $1 AND report_date = $2::date`,
-      [req.params.restaurant_id, date],
-    )
-
-    const row = result.rows[0]
-
-    if (!row) {
-      return res.json({
-        restaurant_id: req.params.restaurant_id,
-        date,
-        total_entries: 0,
-        no_shows: 0,
-        avg_wait_minutes: 0,
-        peak_hour: null,
-      })
-    }
-
+    const row = await getDailyAnalytics(req.params.restaurant_id, date)
     return res.json(row)
   } catch (error) {
     console.error('analytics daily', error)
@@ -44,7 +26,7 @@ router.get('/:restaurant_id/daily', validateToken, requireRoles('gerente', 'admi
 })
 
 router.get('/:restaurant_id/hourly', validateToken, requireRoles('gerente', 'admin'), async (req, res) => {
-  const date = req.query.date ?? new Date().toISOString().slice(0, 10)
+  const date = req.query.date ?? getReportDate()
 
   try {
     if (req.user.role !== 'admin') {
@@ -54,14 +36,8 @@ router.get('/:restaurant_id/hourly', validateToken, requireRoles('gerente', 'adm
       }
     }
 
-    const result = await query(
-      `SELECT hour, entries FROM hourly_analytics
-       WHERE restaurant_id = $1 AND report_date = $2::date
-       ORDER BY hour`,
-      [req.params.restaurant_id, date],
-    )
-
-    return res.json({ hours: result.rows })
+    const hourly = await getHourlyAnalytics(req.params.restaurant_id, date)
+    return res.json(hourly)
   } catch (error) {
     console.error('analytics hourly', error)
     return res.status(500).json({ message: 'Error al cargar horas pico' })
