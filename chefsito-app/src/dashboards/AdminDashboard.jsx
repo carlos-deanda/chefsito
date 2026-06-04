@@ -29,10 +29,13 @@ export default function AdminDashboard({ user, onLogout }) {
       const stats = await Promise.all(
         rs.restaurants.map(async (restaurant) => {
           try {
-            const daily = await api(`/analytics/${restaurant.id}/daily`)
-            return { restaurant, stats: daily }
+            const [daily, hourlyRes] = await Promise.all([
+              api(`/analytics/${restaurant.id}/daily`),
+              api(`/analytics/${restaurant.id}/hourly`).catch(() => ({ hours: [] })),
+            ])
+            return { restaurant, stats: daily, hourly: hourlyRes.hours ?? [] }
           } catch {
-            return { restaurant, stats: null }
+            return { restaurant, stats: null, hourly: [] }
           }
         }),
       )
@@ -51,6 +54,9 @@ export default function AdminDashboard({ user, onLogout }) {
   function navigate(section) {
     setActiveSection(section)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (section === 'analytics' || section === 'dashboard') {
+      load()
+    }
   }
 
   function renderPage() {

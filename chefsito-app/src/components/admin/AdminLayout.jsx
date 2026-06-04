@@ -31,16 +31,10 @@ export default function AdminLayout({
     <div className="flex min-h-screen bg-zinc-50 text-zinc-950">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-zinc-200 bg-white lg:flex">
         <div className="border-b border-zinc-100 px-5 py-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Culinary Ops</p>
-          <p className="mt-1 text-sm text-zinc-500">Panel de administración global</p>
+          <p className="text-sm font-semibold text-zinc-950">Panel de administración</p>
         </div>
 
-        <div className="px-5 py-4">
-          <p className="text-sm font-semibold text-zinc-950">Chain Admin</p>
-          <p className="text-xs text-zinc-500">Global Overview</p>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="mt-2 flex-1 space-y-1 px-3">
           {navItems.map(({ id, label, Icon }) => {
             const active = activeSection === id
             return (
