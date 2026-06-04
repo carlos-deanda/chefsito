@@ -21,6 +21,10 @@ export default function UsuarioDashboard({ user, onLogout }) {
   const [partySize, setPartySize] = useState(2)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [cuisineFilter, setCuisineFilter] = useState('all')
+  const [sortMode, setSortMode] = useState('default')
 
   // Nuevos estados para el historial de notificaciones y permisos de escritorio
   const [notifications, setNotifications] = useState([])
@@ -178,10 +182,46 @@ export default function UsuarioDashboard({ user, onLogout }) {
     }
   }, [])
 
+  const cuisineOptions = useMemo(() => {
+    const cuisines = restaurants
+      .map((restaurant) => restaurant.cuisine?.trim())
+      .filter(Boolean)
+
+    return [...new Set(cuisines)].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [restaurants])
+
+  const filteredRestaurants = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase()
+    const filtered = restaurants.filter((restaurant) => {
+      const name = restaurant.name?.toLowerCase() ?? ''
+      const cuisine = restaurant.cuisine?.trim() ?? ''
+      const matchesSearch = !search || name.includes(search)
+      const matchesStatus = statusFilter === 'all' || restaurant.status === statusFilter
+      const matchesCuisine = cuisineFilter === 'all' || cuisine === cuisineFilter
+
+      return matchesSearch && matchesStatus && matchesCuisine
+    })
+
+    if (sortMode === 'wait_asc') {
+      return [...filtered].sort((a, b) => {
+        const waitDiff = getRestaurantDynamicWaitTime(a) - getRestaurantDynamicWaitTime(b)
+        return waitDiff || (a.name ?? '').localeCompare(b.name ?? '', 'es')
+      })
+    }
+
+    return filtered
+  }, [restaurants, searchTerm, statusFilter, cuisineFilter, sortMode])
+
   const selectedRestaurant = useMemo(
-    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
-    [restaurants, selectedRestaurantId],
+    () => filteredRestaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
+    [filteredRestaurants, selectedRestaurantId],
   )
+
+  const hasActiveFilters =
+    Boolean(searchTerm.trim()) ||
+    statusFilter !== 'all' ||
+    cuisineFilter !== 'all' ||
+    sortMode !== 'default'
 
   async function joinQueue(restaurantId) {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -200,6 +240,13 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
   function handleSelectRestaurant(restaurantId) {
     setSelectedRestaurantId(restaurantId)
+  }
+
+  function clearRestaurantFilters() {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setCuisineFilter('all')
+    setSortMode('default')
   }
 
   async function cancelEntry() {
@@ -302,7 +349,8 @@ export default function UsuarioDashboard({ user, onLogout }) {
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Restaurantes</p>
-                  <p className="mt-2 text-3xl font-semibold">{restaurants.length || '0'}</p>
+                  <p className="mt-2 text-3xl font-semibold">{filteredRestaurants.length || '0'}</p>
+                  <p className="mt-1 text-xs text-zinc-400">de {restaurants.length} registrados</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Tu estado</p>
@@ -339,7 +387,73 @@ export default function UsuarioDashboard({ user, onLogout }) {
                       <h3 className="mt-1 text-xl font-semibold text-zinc-950">Ubicaciones cercanas</h3>
                     </div>
                     <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                      {restaurants.length} lugares
+                      {filteredRestaurants.length} de {restaurants.length} lugares
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_0.75fr_0.85fr_0.9fr_auto]">
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-450">Buscar</span>
+                      <input
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Nombre del restaurante"
+                        type="search"
+                        value={searchTerm}
+                      />
+                    </label>
+
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-450">Estado</span>
+                      <select
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        value={statusFilter}
+                      >
+                        <option value="all">Todos</option>
+                        <option value="open">Abiertos</option>
+                        <option value="closed">Cerrados</option>
+                      </select>
+                    </label>
+
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-450">Cocina</span>
+                      <select
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                        disabled={cuisineOptions.length === 0}
+                        onChange={(e) => setCuisineFilter(e.target.value)}
+                        value={cuisineFilter}
+                      >
+                        <option value="all">Todas</option>
+                        {cuisineOptions.map((cuisine) => (
+                          <option key={cuisine} value={cuisine}>
+                            {cuisine}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-450">Orden</span>
+                      <select
+                        className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                        onChange={(e) => setSortMode(e.target.value)}
+                        value={sortMode}
+                      >
+                        <option value="default">Normal</option>
+                        <option value="wait_asc">Menor espera</option>
+                      </select>
+                    </label>
+
+                    <div className="flex items-end">
+                      <button
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm font-semibold text-zinc-650 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                        disabled={!hasActiveFilters}
+                        onClick={clearRestaurantFilters}
+                        type="button"
+                      >
+                        Limpiar
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -348,7 +462,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
                   <div className="border-b border-zinc-200 p-4 lg:border-b-0 lg:border-r">
                     <div className="relative z-0 h-105 overflow-hidden rounded-3xl border border-zinc-200 shadow-inner">
                       <MapaRestaurantes 
-                        restaurants={restaurants}
+                        restaurants={filteredRestaurants}
                         selectedRestaurantId={selectedRestaurant?.id}
                         onSelectRestaurant={handleSelectRestaurant}
                       />
@@ -468,7 +582,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
                         <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-100/40">
                           <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-450">Otros restaurantes</h5>
                           <div className="mt-3 grid gap-3">
-                            {restaurants
+                            {filteredRestaurants
                               .filter((restaurant) => restaurant.id !== selectedRestaurant.id)
                               .map((restaurant) => (
                                 <button
@@ -495,6 +609,11 @@ export default function UsuarioDashboard({ user, onLogout }) {
                           </div>
                         </div>
                       </>
+                    ) : filteredRestaurants.length === 0 ? (
+                      <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-55/40 p-8 text-center text-sm text-zinc-500">
+                        <p className="font-bold text-zinc-700">No se encontraron restaurantes con esos filtros.</p>
+                        <p className="mt-2 text-xs leading-relaxed">Prueba cambiando la busqueda, el estado o el tipo de cocina.</p>
+                      </div>
                     ) : (
                       <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-55/40 p-8 text-center text-sm text-zinc-500">
                         <p className="font-bold text-zinc-700">Explora el mapa</p>
@@ -502,11 +621,11 @@ export default function UsuarioDashboard({ user, onLogout }) {
                       </div>
                     )}
 
-                    {restaurants.length > 0 && (
+                    {filteredRestaurants.length > 0 && (
                       <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-100/40">
                         <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-450">Lista completa de locales</h5>
                         <div className="mt-3 space-y-3">
-                          {restaurants.map((restaurant) => (
+                          {filteredRestaurants.map((restaurant) => (
                             <button
                               key={restaurant.id}
                               className={`w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
@@ -552,11 +671,13 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
 const statusStyles = {
   open: 'bg-emerald-50 text-emerald-700 ring-emerald-250',
+  paused: 'bg-amber-50 text-amber-700 ring-amber-250',
   closed: 'bg-rose-50 text-rose-700 ring-rose-250',
 }
 
 const statusLabel = {
   open: 'Abierto',
+  paused: 'Pausado',
   closed: 'Cerrado',
 }
 
