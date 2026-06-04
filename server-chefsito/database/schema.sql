@@ -13,6 +13,13 @@ DROP TABLE IF EXISTS restaurant_staff CASCADE;
 DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS restaurants CASCADE;
 DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS user_profiles CASCADE;
+DROP TABLE IF EXISTS publicaciones CASCADE;
+DROP TABLE IF EXISTS user_roles_junction CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS estudiante_cursos CASCADE;
+DROP TABLE IF EXISTS estudiantes CASCADE;
+DROP TABLE IF EXISTS cursos CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 DROP TYPE IF EXISTS user_role CASCADE;
@@ -236,3 +243,68 @@ CREATE TRIGGER tr_users_updated_at
 CREATE TRIGGER tr_restaurants_updated_at
   BEFORE UPDATE ON restaurants
   FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Relación 1:1 -> Usuario <-> Perfil
+-- ---------------------------------------------------------------------------
+CREATE TABLE user_profiles (
+  user_id       UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  bio           TEXT,
+  avatar_url    VARCHAR(255),
+  preferences   JSONB DEFAULT '{}'::jsonb,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER tr_user_profiles_updated_at
+  BEFORE UPDATE ON user_profiles
+  FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Relación 1:N -> Usuario -> Publicaciones
+-- ---------------------------------------------------------------------------
+CREATE TABLE publicaciones (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title         VARCHAR(255) NOT NULL,
+  content       TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------------------
+-- Relación N:M -> Usuarios <-> Roles
+-- ---------------------------------------------------------------------------
+CREATE TABLE roles (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        VARCHAR(50) NOT NULL UNIQUE,
+  description TEXT
+);
+
+CREATE TABLE user_roles_junction (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, role_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- Relación N:M -> Estudiantes <-> Cursos (Ejemplo de Rúbrica)
+-- ---------------------------------------------------------------------------
+CREATE TABLE estudiantes (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        VARCHAR(120) NOT NULL,
+  email       VARCHAR(255) NOT NULL UNIQUE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE cursos (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code        VARCHAR(20) NOT NULL UNIQUE,
+  name        VARCHAR(120) NOT NULL,
+  credits     INT NOT NULL DEFAULT 3
+);
+
+CREATE TABLE estudiante_cursos (
+  estudiante_id UUID NOT NULL REFERENCES estudiantes(id) ON DELETE CASCADE,
+  curso_id      UUID NOT NULL REFERENCES cursos(id) ON DELETE CASCADE,
+  enrolled_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (estudiante_id, curso_id)
+);

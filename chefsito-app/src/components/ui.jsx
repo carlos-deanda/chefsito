@@ -50,9 +50,160 @@ export function StatusBadge({ status, uppercase = false }) {
 
 export { roleLabel }
 
+export function EditProfileModal({ isOpen, onClose }) {
+  const [profile, setProfile] = useState({ bio: '', avatar_url: '', preferences: { favorite_cuisine: '' } })
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true)
+      setError('')
+      setSuccess('')
+      api('/profiles')
+        .then((res) => {
+          const prof = res.profile || { bio: '', avatar_url: '', preferences: { favorite_cuisine: '' } }
+          if (!prof.preferences) {
+            prof.preferences = { favorite_cuisine: '' }
+          }
+          setProfile(prof)
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false))
+    }
+  }, [isOpen])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await api('/profiles', {
+        method: 'PUT',
+        body: JSON.stringify({
+          bio: profile.bio,
+          avatar_url: profile.avatar_url,
+          preferences: profile.preferences,
+        }),
+      })
+      setSuccess(res.message || 'Perfil guardado correctamente')
+      setTimeout(() => {
+        onClose()
+      }, 1000)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+          <h3 className="text-lg font-bold text-zinc-950">Editar Perfil</h3>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 cursor-pointer"
+            type="button"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-12 text-center text-sm text-zinc-500">Cargando perfil...</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {error && (
+              <p className="rounded-xl bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-600 ring-1 ring-red-500/20">
+                {error}
+              </p>
+            )}
+            {success && (
+              <p className="rounded-xl bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-500/20">
+                {success}
+              </p>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Foto de Perfil (URL)</label>
+              <input
+                type="text"
+                placeholder="https://ejemplo.com/avatar.jpg"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={profile.avatar_url || ''}
+                onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Biografía</label>
+              <textarea
+                placeholder="Cuéntanos un poco sobre ti..."
+                rows={3}
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 placeholder:text-zinc-400 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"
+                value={profile.bio || ''}
+                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Cocina Favorita</label>
+              <select
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                value={profile.preferences?.favorite_cuisine || ''}
+                onChange={(e) =>
+                  setProfile({
+                    ...profile,
+                    preferences: { ...profile.preferences, favorite_cuisine: e.target.value },
+                  })
+                }
+              >
+                <option value="">Ninguna seleccionada</option>
+                <option value="Mexicana">Mexicana</option>
+                <option value="Asiática">Asiática</option>
+                <option value="Tex-Mex">Tex-Mex</option>
+                <option value="Italiana">Italiana</option>
+                <option value="Hamburguesas">Hamburguesas</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-zinc-100 pt-4">
+              <button
+                onClick={onClose}
+                type="button"
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-650 hover:bg-zinc-50 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-[#f15a24] hover:bg-[#e04f1c] px-4 py-2 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {saving ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function AppShell({ user, onLogout, title, subtitle, children }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [hasNew, setHasNew] = useState(false)
   const initials = getInitials(user.name)
@@ -174,7 +325,17 @@ export function AppShell({ user, onLogout, title, subtitle, children }) {
                   <p className="border-b border-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950">{user.name}</p>
                   <p className="px-4 py-1 text-xs text-zinc-500">{roleLabel[user.role] ?? user.role}</p>
                   <button
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-50"
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-50 border-b border-zinc-100 cursor-pointer"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setProfileModalOpen(true)
+                    }}
+                    type="button"
+                  >
+                    Editar Perfil
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-50 cursor-pointer"
                     onClick={() => {
                       setMenuOpen(false)
                       onLogout()
@@ -190,6 +351,7 @@ export function AppShell({ user, onLogout, title, subtitle, children }) {
         </div>
       </header>
       <div className="mx-auto w-full max-w-7xl px-4 py-6">{children}</div>
+      <EditProfileModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
     </main>
   )
 }

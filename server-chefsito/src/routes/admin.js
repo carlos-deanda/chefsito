@@ -264,4 +264,177 @@ router.post('/restaurants', async (req, res) => {
   }
 })
 
+// PUT /admin/restaurants/:id -> Actualizar un restaurante existente
+router.put('/restaurants/:id', async (req, res) => {
+  const {
+    name,
+    cuisine,
+    address,
+    lat,
+    lng,
+    table_count,
+    status,
+    estimated_wait_minutes,
+  } = req.body
+
+  const parsedLat = Number(lat)
+  const parsedLng = Number(lng)
+  const parsedTableCount = Number(table_count)
+  const parsedEstimatedWaitMinutes = Number(estimated_wait_minutes)
+
+  if (!name?.trim() || !address?.trim()) {
+    return res.status(400).json({ message: 'Nombre y dirección son requeridos' })
+  }
+
+  if (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+    return res.status(400).json({ message: 'Latitud inválida' })
+  }
+
+  if (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+    return res.status(400).json({ message: 'Longitud inválida' })
+  }
+
+  if (isNaN(parsedTableCount) || parsedTableCount <= 0) {
+    return res.status(400).json({ message: 'El número de mesas debe ser mayor a 0' })
+  }
+
+  if (isNaN(parsedEstimatedWaitMinutes) || parsedEstimatedWaitMinutes < 0) {
+    return res.status(400).json({ message: 'La espera estimada no puede ser negativa' })
+  }
+
+  if (!RESTAURANT_STATUSES.includes(status)) {
+    return res.status(400).json({ message: 'Estado inválido' })
+  }
+
+  try {
+    const result = await query(
+      `UPDATE restaurants
+       SET name = $1, cuisine = $2, address = $3, lat = $4, lng = $5,
+           table_count = $6, status = $7::restaurant_status, estimated_wait_minutes = $8,
+           updated_at = NOW()
+       WHERE id = $9
+       RETURNING id, name, cuisine, address, lat, lng, table_count, status, estimated_wait_minutes`,
+      [
+        name.trim(),
+        cuisine?.trim() || null,
+        address.trim(),
+        parsedLat,
+        parsedLng,
+        parsedTableCount,
+        status,
+        parsedEstimatedWaitMinutes,
+        req.params.id,
+      ],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Restaurante no encontrado' })
+    }
+
+    // Notificar cambio
+    const io = req.app.get('io')
+    if (io) {
+      io.emit('restaurant:status_changed', { id: req.params.id, status })
+    }
+
+    return res.json({
+      restaurant: result.rows[0],
+      message: 'Restaurante actualizado correctamente',
+    })
+  } catch (error) {
+    console.error('admin update restaurant error', error)
+    return res.status(500).json({ message: 'Error al actualizar el restaurante' })
+  }
+})
+
+// DELETE /admin/restaurants/:id -> Eliminar un restaurante existente
+router.delete('/restaurants/:id', async (req, res) => {
+  try {
+    const result = await query(
+      `DELETE FROM restaurants WHERE id = $1 RETURNING id, name`,
+      [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Restaurante no encontrado' })
+    }
+
+    const io = req.app.get('io')
+    if (io) {
+      io.emit('restaurant:deleted', { id: req.params.id })
+    }
+
+    return res.json({ message: `Restaurante "${result.rows[0].name}" eliminado correctamente` })
+  } catch (error) {
+    console.error('admin delete restaurant error', error)
+    return res.status(500).json({ message: 'Error al eliminar el restaurante' })
+  }
+})
+
+// PUT /admin/users/:id -> Editar información de un usuario/empleado
+router.put('/users/:id', async (req, res) => {
+  const { name, email, phone, role } = req.body
+
+  if (!name?.trim() || !email?.trim() || !role) {
+    return res.status(400).json({ message: 'Nombre, email y rol son requeridos' })
+  }
+
+  if (!STAFF_ROLES.includes(role)) {
+    return res.status(400).json({ message: 'Rol inválido' })
+  }
+
+  try {
+    const result = await query(
+      `UPDATE users
+       SET name = $1, email = $2::varchar(255), phone = $3, role = $4::user_role, updated_at = NOW()
+       WHERE id = $5
+       RETURNING id, name, email, phone, role, is_active`,
+      [name.trim(), email.trim().toLowerCase(), phone?.trim() || null, role, req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' })
+    }
+
+    return res.json({
+      user: result.rows[0],
+      message: 'Usuario actualizado correctamente',
+    })
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe un usuario con ese correo electrónico' })
+    }
+    console.error('admin update user error', error)
+    return res.status(500).json({ message: 'Error al actualizar el usuario' })
+  }
+})
+
+// PUT /admin/users/:id/toggle-active -> Desactivar/Activar cuenta (Soft Delete/Baja)
+router.put('/users/:id/toggle-active', async (req, res) => {
+  try {
+    const userRes = await query(`SELECT is_active FROM users WHERE id = $1`, [req.params.id])
+    if (userRes.rowCount === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' })
+    }
+
+    const nextStatus = !userRes.rows[0].is_active
+
+    const result = await query(
+      `UPDATE users
+       SET is_active = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, name, email, role, is_active`,
+      [nextStatus, req.params.id],
+    )
+
+    return res.json({
+      user: result.rows[0],
+      message: nextStatus ? 'Usuario reactivado' : 'Usuario desactivado (dado de baja)',
+    })
+  } catch (error) {
+    console.error('admin toggle active error', error)
+    return res.status(500).json({ message: 'Error al cambiar estado de actividad' })
+  }
+})
+
 export default router

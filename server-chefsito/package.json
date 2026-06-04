@@ -9,7 +9,8 @@
     "db:schema": "node scripts/run-sql.js database/schema.sql",
     "db:seed": "node scripts/run-sql.js database/seed.sql && node scripts/fix-passwords.js",
     "db:fix-passwords": "node scripts/fix-passwords.js",
-    "db:reset": "npm run db:schema && npm run db:seed"
+    "db:reset": "npm run db:schema && npm run db:seed",
+    "db:verify": "node scripts/verify-integrity.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

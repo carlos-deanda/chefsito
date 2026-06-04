@@ -10,6 +10,9 @@ import restaurantRoutes from './routes/restaurants.js'
 import waitlistRoutes from './routes/waitlist.js'
 import soporteRoutes from './routes/soporte.js'
 import analyticsRoutes from './routes/analytics.js'
+import profileRoutes from './routes/profiles.js'
+import publicacionRoutes from './routes/publicaciones.js'
+import academicRoutes from './routes/academic.js'
 
 const app = express()
 const server = createServer(app)
@@ -67,6 +70,9 @@ app.use('/restaurants', restaurantRoutes)
 app.use('/waitlist', waitlistRoutes)
 app.use('/soporte', soporteRoutes)
 app.use('/analytics', analyticsRoutes)
+app.use('/profiles', profileRoutes)
+app.use('/publicaciones', publicacionRoutes)
+app.use('/academic', academicRoutes)
 
 io.on('connection', (socket) => {
   socket.on('restaurant:join', (restaurantId) => {
