@@ -16,7 +16,6 @@ const initialForm = {
 
 const statusOptions = [
   { value: 'open', label: 'Abierto' },
-  { value: 'paused', label: 'Pausado' },
   { value: 'closed', label: 'Cerrado' },
 ]
 

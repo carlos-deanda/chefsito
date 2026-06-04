@@ -1,30 +1,79 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import { AppShell, MetricCard } from '../components/ui.jsx'
+import { io as socketIO } from 'socket.io-client'
+
 const statusOptions = [
   { value: 'open', label: 'Abierto' },
-  { value: 'paused', label: 'Pausado' },
   { value: 'closed', label: 'Cerrado' },
 ]
+
+export function EmptyQueueState() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200/60 bg-linear-to-b from-zinc-50 to-white p-12 text-center shadow-xs">
+      <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 ring-8 ring-orange-50/50 animate-pulse">
+        <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.472 3.472 0 011.839 1.839 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.472 3.472 0 01-1.839-1.839z" />
+        </svg>
+        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+        </span>
+      </div>
+      <h3 className="mt-6 text-xl font-bold text-zinc-900">¡Todo al día!</h3>
+      <p className="mt-2 max-w-sm text-sm text-zinc-550 leading-relaxed">
+        No hay comensales esperando en la fila en este momento. Las mesas de tu local están fluyendo libremente.
+      </p>
+      <div className="mt-6 rounded-full bg-emerald-50 px-3.5 py-1 text-xs font-semibold text-emerald-750 ring-1 ring-emerald-250/50 flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        Servicio activo y fluido
+      </div>
+    </div>
+  )
+}
 
 function GerenteExtras({ restaurant, onStatusChange, analytics }) {
   return (
   <>
-    <div className="mb-6 flex flex-wrap gap-2">
-      {statusOptions.map((opt) => (
-        <button
-          key={opt.value}
-          className={`rounded-lg px-3 py-2 text-sm font-semibold ${
-            restaurant.status === opt.value
-              ? 'bg-zinc-950 text-white'
-              : 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-          }`}
-          onClick={() => onStatusChange(opt.value)}
-          type="button"
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="mb-6 flex flex-wrap items-center gap-3">
+      {statusOptions.map((opt) => {
+        const isActive = restaurant.status === opt.value
+        const buttonClass = opt.value === 'open'
+          ? isActive
+            ? 'bg-emerald-600 border border-emerald-700 text-white shadow-md shadow-emerald-500/25 scale-102 font-bold cursor-pointer transition flex items-center gap-2'
+            : 'border border-zinc-200 text-zinc-650 bg-white hover:bg-emerald-50 hover:text-emerald-750 hover:border-emerald-200 font-semibold cursor-pointer transition flex items-center gap-2'
+          : isActive
+            ? 'bg-rose-600 border border-rose-700 text-white shadow-md shadow-rose-500/25 scale-102 font-bold cursor-pointer transition flex items-center gap-2'
+            : 'border border-zinc-200 text-zinc-650 bg-white hover:bg-rose-50 hover:text-rose-750 hover:border-rose-200 font-semibold cursor-pointer transition flex items-center gap-2'
+
+        const dotElement = opt.value === 'open'
+          ? (
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isActive ? 'bg-emerald-300' : 'bg-emerald-400'}`}></span>
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isActive ? 'bg-white' : 'bg-emerald-500'}`}></span>
+            </span>
+          )
+          : (
+            <span className="relative flex h-2.5 w-2.5">
+              {isActive && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-300 opacity-75"></span>
+              )}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isActive ? 'bg-white' : 'bg-rose-500'}`}></span>
+            </span>
+          )
+
+        return (
+          <button
+            key={opt.value}
+            className={`rounded-xl px-5 py-2.5 text-sm ${buttonClass}`}
+            onClick={() => onStatusChange(opt.value)}
+            type="button"
+          >
+            {dotElement}
+            {opt.label}
+          </button>
+        )
+      })}
     </div>
 
     {analytics && (
@@ -64,8 +113,20 @@ export default function GerenteDashboard({ user, onLogout }) {
 
   useEffect(() => {
     load()
+
+    const socket = socketIO(import.meta.env.VITE_API_URL ?? 'http://localhost:4000')
+
+    socket.on('waitlist:changed', (data) => {
+      console.log('Socket event waitlist:changed received in Manager Dashboard', data)
+      load()
+    })
+
     const interval = setInterval(load, 5000)
-    return () => clearInterval(interval)
+
+    return () => {
+      clearInterval(interval)
+      socket.disconnect()
+    }
   }, [load])
 
   async function updateStatus(status) {
@@ -115,10 +176,7 @@ export default function GerenteDashboard({ user, onLogout }) {
         </div>
 
         {waitlist.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
-            <p className="font-semibold text-zinc-700">Fila vacía</p>
-            <p className="mt-1 text-sm">No hay personas esperando en la fila en este momento.</p>
-          </div>
+          <EmptyQueueState />
         ) : (
           <div className="relative border-l-2 border-zinc-200 pl-6 ml-4 space-y-6 my-4">
             {waitlist.map((entry) => {

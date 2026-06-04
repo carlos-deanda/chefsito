@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { api } from '../api/client.js'
 // Se quitó MetricCard y StatusBadge de aquí para evitar el conflicto de duplicados
 import { AppShell } from '../components/ui.jsx'
 // Importación del mapa corregida
 import MapaRestaurantes from '../components/MapaRestaurantes.jsx'
+import { io as socketIO } from 'socket.io-client'
 
 function getRestaurantDynamicWaitTime(restaurant) {
   if (!restaurant) return 0
@@ -21,6 +22,51 @@ export default function UsuarioDashboard({ user, onLogout }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
+  // Nuevos estados para el historial de notificaciones y permisos de escritorio
+  const [notifications, setNotifications] = useState([])
+  const [permissionStatus, setPermissionStatus] = useState(() => {
+    return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  })
+
+  // Turnos completados o cancelados que el usuario ya cerró
+  const [dismissedEntries, setDismissedEntries] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dismissed_waitlist_entries')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Guardar turnos descartados
+  useEffect(() => {
+    localStorage.setItem('dismissed_waitlist_entries', JSON.stringify(dismissedEntries))
+  }, [dismissedEntries])
+
+  const lastNotifiedEntryIdRef = useRef(null)
+
+  // Escuchar cuando el turno cambia a 'called' para avisar por notificación de Chrome
+  useEffect(() => {
+    if (myEntry && myEntry.status === 'called') {
+      if (lastNotifiedEntryIdRef.current !== myEntry.id) {
+        lastNotifiedEntryIdRef.current = myEntry.id
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('🔔 ¡Mesa lista en Chefsito!', {
+              body: `Tu mesa en ${myEntry.restaurant_name} está lista. ¡Tienes 5 minutos para entrar, si no tu turno se perderá! Confirma tu llegada.`,
+            })
+          } catch (e) {
+            console.error('Failed to trigger native Notification', e)
+          }
+        }
+      }
+    } else if (!myEntry || myEntry.status !== 'called') {
+      if (!myEntry) {
+        lastNotifiedEntryIdRef.current = null
+      }
+    }
+  }, [myEntry])
+
   async function fetchDashboardData() {
     const [nearby, mine] = await Promise.all([
       api('/restaurants/nearby'),
@@ -33,6 +79,15 @@ export default function UsuarioDashboard({ user, onLogout }) {
     }
   }
 
+  async function fetchNotificationsList() {
+    try {
+      const res = await api('/waitlist/notifications')
+      setNotifications(res.notifications || [])
+    } catch (err) {
+      console.error('Error fetching notifications:', err)
+    }
+  }
+
   async function loadData() {
     setLoading(true)
     try {
@@ -40,7 +95,8 @@ export default function UsuarioDashboard({ user, onLogout }) {
       setRestaurants(data.restaurants)
       setMyEntry(data.myEntry)
       
-      // CORRECCIÓN: Al recargar datos, si no había un restaurante seleccionado por el usuario, se queda en null
+      await fetchNotificationsList()
+      
       setSelectedRestaurantId((current) => {
         if (current && data.restaurants.some((restaurant) => restaurant.id === current)) {
           return current
@@ -58,17 +114,20 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
   useEffect(() => {
     let cancelled = false
+    const socket = socketIO(import.meta.env.VITE_API_URL ?? 'http://localhost:4000')
 
     async function initialLoad() {
       try {
-        const data = await fetchDashboardData()
+        const [data, notifRes] = await Promise.all([
+          fetchDashboardData(),
+          api('/waitlist/notifications')
+        ])
 
         if (cancelled) return
 
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
-        
-        // CORRECCIÓN: Al iniciar por primera vez, no auto-seleccionamos ninguno para que el mapa vaya a tu ubicación
+        setNotifications(notifRes.notifications || [])
         setSelectedRestaurantId(null)
         
         setError('')
@@ -85,30 +144,49 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
     initialLoad()
 
-    const interval = setInterval(async () => {
+    async function refreshData() {
       try {
-        const data = await fetchDashboardData()
+        const [data, notifRes] = await Promise.all([
+          fetchDashboardData(),
+          api('/waitlist/notifications')
+        ])
         if (cancelled) return
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
+        setNotifications(notifRes.notifications || [])
       } catch (err) {
-        console.error('Error polling waitlist data:', err)
+        console.error('Error refreshing waitlist data:', err)
       }
-    }, 5000)
+    }
+
+    socket.on('restaurant:status_changed', (data) => {
+      console.log('Socket event: restaurant:status_changed', data)
+      refreshData()
+    })
+
+    socket.on('waitlist:changed', (data) => {
+      console.log('Socket event: waitlist:changed', data)
+      refreshData()
+    })
+
+    const interval = setInterval(refreshData, 5000)
 
     return () => {
       cancelled = true
       clearInterval(interval)
+      socket.disconnect()
     }
   }, [])
 
-  // CORRECCIÓN: Quitamos el "salvavidas" que forzaba el primer restaurante si el ID era null
   const selectedRestaurant = useMemo(
     () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
     [restaurants, selectedRestaurantId],
   )
 
   async function joinQueue(restaurantId) {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch((err) => console.error('Permission request failed', err))
+    }
     try {
       await api('/waitlist', {
         method: 'POST',
@@ -144,20 +222,70 @@ export default function UsuarioDashboard({ user, onLogout }) {
     }
   }
 
+  function handleDismissCompletedEntry(entryId) {
+    setDismissedEntries((prev) => {
+      if (prev.includes(entryId)) return prev
+      return [...prev, entryId]
+    })
+  }
+
+  function handleRequestPermission() {
+    if ('Notification' in window) {
+      Notification.requestPermission()
+        .then((permission) => {
+          setPermissionStatus(permission)
+        })
+        .catch((err) => {
+          console.error('Error requesting notification permission:', err)
+        })
+    }
+  }
+
+  const isActiveEntry = myEntry && (myEntry.status === 'waiting' || myEntry.status === 'called')
+  const isArrivedUnacknowledged = myEntry && myEntry.status === 'arrived' && !dismissedEntries.includes(myEntry.id)
+  const isCancelledUnacknowledged = myEntry && myEntry.status === 'cancelled' && !dismissedEntries.includes(myEntry.id)
+
+  let shellTitle = "Dashboard del cliente"
+  let shellSubtitle = "Explora restaurantes desde un mapa interactivo y revisa su información"
+
+  if (isActiveEntry) {
+    shellTitle = "Tu Turno Activo"
+    shellSubtitle = `Tienes un turno activo en ${myEntry.restaurant_name}`
+  } else if (isArrivedUnacknowledged) {
+    shellTitle = "¡Tu Mesa Está Lista!"
+    shellSubtitle = `Disfruta tu visita en ${myEntry.restaurant_name}`
+  } else if (isCancelledUnacknowledged) {
+    shellTitle = "Turno Cancelado"
+    shellSubtitle = `Tu turno en ${myEntry.restaurant_name} ha finalizado`
+  }
+
   return (
     <AppShell
       onLogout={onLogout}
-      subtitle={myEntry ? `Tienes un turno activo en ${myEntry.restaurant_name}` : "Explora restaurantes desde un mapa interactivo y revisa su información"}
-      title={myEntry ? "Tu Turno Activo" : "Dashboard del cliente"}
+      subtitle={shellSubtitle}
+      title={shellTitle}
       user={user}
     >
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      {myEntry ? (
+      {isActiveEntry ? (
         <ActiveTurnView
           myEntry={myEntry}
           cancelEntry={cancelEntry}
           confirmArrival={confirmArrival}
+          notifications={notifications}
+          permissionStatus={permissionStatus}
+          onRequestPermission={handleRequestPermission}
+        />
+      ) : isArrivedUnacknowledged ? (
+        <CelebrationView
+          myEntry={myEntry}
+          onDismiss={() => handleDismissCompletedEntry(myEntry.id)}
+        />
+      ) : isCancelledUnacknowledged ? (
+        <CancellationView
+          myEntry={myEntry}
+          onDismiss={() => handleDismissCompletedEntry(myEntry.id)}
         />
       ) : (
         <>
@@ -230,41 +358,83 @@ export default function UsuarioDashboard({ user, onLogout }) {
                   <aside className="space-y-4 p-4">
                     {selectedRestaurant ? (
                       <>
-                        <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
+                        <div className={`rounded-3xl border p-5 transition-all duration-300 ${
+                          selectedRestaurant.status === 'closed'
+                            ? 'border-rose-350 bg-rose-50/50 backdrop-blur-md ring-4 ring-rose-100/50 shadow-lg shadow-rose-100/25'
+                            : 'border-zinc-200 bg-white shadow-sm shadow-zinc-100/40'
+                        }`}>
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Restaurante seleccionado</p>
-                              <h4 className="mt-1 text-2xl font-semibold text-zinc-950">{selectedRestaurant.name}</h4>
+                              <p className={`text-xs font-bold uppercase tracking-[0.18em] ${
+                                selectedRestaurant.status === 'closed' ? 'text-rose-600/80' : 'text-zinc-400'
+                              }`}>Restaurante seleccionado</p>
+                              <h4 className={`mt-1.5 text-2xl font-black tracking-tight ${
+                                selectedRestaurant.status === 'closed' ? 'text-rose-950 font-black' : 'text-zinc-950'
+                              }`}>{selectedRestaurant.name}</h4>
                             </div>
                             <StatusBadge status={selectedRestaurant.status} />
                           </div>
 
-                          <p className="mt-3 text-sm text-zinc-600">{selectedRestaurant.cuisine}</p>
-                          <p className="mt-1 text-sm text-zinc-500">{selectedRestaurant.address}</p>
+                          <p className={`mt-3 text-sm font-medium ${
+                            selectedRestaurant.status === 'closed' ? 'text-rose-800/90' : 'text-zinc-600'
+                          }`}>{selectedRestaurant.cuisine}</p>
+                          <p className={`mt-1 text-xs ${
+                            selectedRestaurant.status === 'closed' ? 'text-rose-600/70' : 'text-zinc-500'
+                          }`}>{selectedRestaurant.address}</p>
 
                           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                            <MetricCard label="Tiempo estimado" value={`${getRestaurantDynamicWaitTime(selectedRestaurant)} min`} />
-                            <MetricCard label="En fila" value={selectedRestaurant.people_waiting} />
+                            <MetricCard
+                              label="Tiempo estimado"
+                              value={`${getRestaurantDynamicWaitTime(selectedRestaurant)} min`}
+                              theme={selectedRestaurant.status === 'closed' ? 'rose' : 'normal'}
+                            />
+                            <MetricCard
+                              label="En fila"
+                              value={selectedRestaurant.people_waiting}
+                              theme={selectedRestaurant.status === 'closed' ? 'rose' : 'normal'}
+                            />
                           </div>
 
-                          <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
-                            <p className="font-semibold text-zinc-950">Perfil del local</p>
-                            <p className="mt-2">
-                              {selectedRestaurant.status === 'open'
-                                ? 'Está abierto y puedes unirte a la fila desde esta pantalla.'
-                                : selectedRestaurant.status === 'paused'
-                                  ? 'El restaurante está pausado. Puedes revisar la información, pero no unirte todavía.'
-                                  : 'El restaurante está cerrado por el momento.'}
-                            </p>
-                          </div>
+                          {selectedRestaurant.status === 'closed' ? (
+                            <div className="mt-4 rounded-2xl bg-white/90 border border-rose-200/70 p-4 text-sm text-rose-800 backdrop-blur-xs shadow-xs">
+                              <p className="font-bold text-rose-950 flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                </span>
+                                Fuera de servicio
+                              </p>
+                              <p className="mt-2 leading-relaxed text-rose-700/90 text-xs">
+                                Este local no está recibiendo clientes en la fila de espera por el momento. ¡Te esperamos pronto!
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="mt-4 rounded-2xl bg-zinc-50 border border-zinc-200/60 p-4 text-sm text-zinc-650">
+                              <p className="font-semibold text-zinc-950 flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Servicio Activo
+                              </p>
+                              <p className="mt-2 leading-relaxed text-xs">
+                                Está abierto y puedes unirte a la fila de espera para reservar tu lugar ahora mismo desde esta pantalla.
+                              </p>
+                            </div>
+                          )}
 
                           <div className="mt-4 flex flex-wrap gap-2">
-                            <label className="text-sm font-medium text-zinc-700">
+                            <label className={`text-sm font-semibold ${selectedRestaurant.status === 'closed' ? 'text-rose-800' : 'text-zinc-700'}`}>
                               Personas
                               <select
-                                className="ml-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm"
+                                className={`ml-2 rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 transition ${
+                                  selectedRestaurant.status === 'closed'
+                                    ? 'border-rose-200 bg-white/80 text-rose-950 focus:ring-rose-200 focus:border-rose-450'
+                                    : 'border-zinc-300 bg-white text-zinc-950 focus:ring-orange-100 focus:border-orange-450'
+                                }`}
                                 onChange={(e) => setPartySize(Number(e.target.value))}
                                 value={partySize}
+                                disabled={selectedRestaurant.status === 'closed'}
                               >
                                 {[1, 2, 3, 4, 5, 6].map((n) => (
                                   <option key={n} value={n}>
@@ -275,36 +445,48 @@ export default function UsuarioDashboard({ user, onLogout }) {
                             </label>
                           </div>
 
-                          <button
-                            className="mt-4 w-full rounded-2xl bg-[#f15a24] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#e04f1c] disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={Boolean(myEntry) || selectedRestaurant.status !== 'open'}
-                            onClick={() => joinQueue(selectedRestaurant.id)}
-                            type="button"
-                          >
-                            {selectedRestaurant.status !== 'open'
-                              ? 'No disponible'
-                              : myEntry
-                                ? 'Ya tienes un turno activo'
-                                : 'Unirme a la fila'}
-                          </button>
+                          {selectedRestaurant.status === 'closed' ? (
+                            <button
+                              className="mt-4 w-full rounded-2xl border border-rose-200 bg-rose-100/20 px-4 py-3.5 text-sm font-bold text-rose-500 cursor-not-allowed transition duration-300"
+                              disabled={true}
+                              type="button"
+                            >
+                              Fuera de servicio
+                            </button>
+                          ) : (
+                            <button
+                              className="mt-4 w-full rounded-2xl bg-linear-to-r from-orange-500 to-[#f15a24] hover:from-orange-600 hover:to-[#e04f1c] px-4 py-3.5 text-sm font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-orange-500/25 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                              disabled={Boolean(myEntry)}
+                              onClick={() => joinQueue(selectedRestaurant.id)}
+                              type="button"
+                            >
+                              {myEntry ? 'Ya tienes un turno activo' : 'Unirme a la fila'}
+                            </button>
+                          )}
                         </div>
 
-                        <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                          <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Otros restaurantes</h5>
+                        <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-100/40">
+                          <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-450">Otros restaurantes</h5>
                           <div className="mt-3 grid gap-3">
                             {restaurants
                               .filter((restaurant) => restaurant.id !== selectedRestaurant.id)
                               .map((restaurant) => (
                                 <button
                                   key={restaurant.id}
-                                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-left transition hover:border-orange-300 hover:bg-orange-50"
+                                  className={`rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
+                                    restaurant.status === 'closed'
+                                      ? 'border-rose-100 bg-rose-50/20 hover:border-rose-350 hover:bg-rose-50/40 text-rose-950'
+                                      : 'border-zinc-200 bg-zinc-50/55 hover:border-emerald-350 hover:bg-emerald-50/20'
+                                  }`}
                                   onClick={() => handleSelectRestaurant(restaurant.id)}
                                   type="button"
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div>
                                       <p className="font-semibold text-zinc-950">{restaurant.name}</p>
-                                      <p className="mt-1 text-sm text-zinc-500">{restaurant.cuisine} · {getRestaurantDynamicWaitTime(restaurant)} min</p>
+                                      <p className="mt-1 text-xs text-zinc-500">
+                                        {restaurant.cuisine} · {restaurant.status === 'closed' ? 'Cerrado' : `${getRestaurantDynamicWaitTime(restaurant)} min`}
+                                      </p>
                                     </div>
                                     <StatusBadge status={restaurant.status} />
                                   </div>
@@ -314,23 +496,27 @@ export default function UsuarioDashboard({ user, onLogout }) {
                         </div>
                       </>
                     ) : (
-                      <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
-                        <p className="font-semibold text-zinc-700">Explora el mapa</p>
-                        <p className="mt-1">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
+                      <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-55/40 p-8 text-center text-sm text-zinc-500">
+                        <p className="font-bold text-zinc-700">Explora el mapa</p>
+                        <p className="mt-2 text-xs leading-relaxed">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
                       </div>
                     )}
 
                     {restaurants.length > 0 && (
-                      <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                        <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista completa de locales</h5>
+                      <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-100/40">
+                        <h5 className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-450">Lista completa de locales</h5>
                         <div className="mt-3 space-y-3">
                           {restaurants.map((restaurant) => (
                             <button
                               key={restaurant.id}
-                              className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                              className={`w-full rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
                                 restaurant.id === selectedRestaurant?.id
-                                  ? 'border-orange-300 bg-orange-50'
-                                  : 'border-zinc-200 bg-zinc-50 hover:border-orange-300 hover:bg-orange-50'
+                                  ? restaurant.status === 'closed'
+                                    ? 'border-rose-400 bg-rose-100/40 ring-4 ring-rose-100 shadow-sm'
+                                    : 'border-emerald-450 bg-emerald-100/30 ring-4 ring-emerald-100 shadow-sm'
+                                  : restaurant.status === 'closed'
+                                    ? 'border-rose-100 bg-rose-50/20 hover:border-rose-350 hover:bg-rose-50/40'
+                                    : 'border-zinc-200 bg-zinc-50/55 hover:border-emerald-350 hover:bg-emerald-50/20'
                               }`}
                               onClick={() => handleSelectRestaurant(restaurant.id)}
                               type="button"
@@ -338,7 +524,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="font-semibold text-zinc-950">{restaurant.name}</p>
-                                  <p className="mt-1 text-sm text-zinc-500">{restaurant.address}</p>
+                                  <p className="mt-1 text-xs text-zinc-500">{restaurant.address}</p>
                                 </div>
                                 <StatusBadge status={restaurant.status} />
                               </div>
@@ -347,6 +533,12 @@ export default function UsuarioDashboard({ user, onLogout }) {
                         </div>
                       </div>
                     )}
+
+                    <NotificationCenter
+                      notifications={notifications}
+                      permissionStatus={permissionStatus}
+                      onRequestPermission={handleRequestPermission}
+                    />
                   </aside>
                 </div>
               </section>
@@ -359,14 +551,12 @@ export default function UsuarioDashboard({ user, onLogout }) {
 }
 
 const statusStyles = {
-  open: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  paused: 'bg-amber-50 text-amber-700 ring-amber-200',
-  closed: 'bg-zinc-100 text-zinc-600 ring-zinc-200',
+  open: 'bg-emerald-50 text-emerald-700 ring-emerald-250',
+  closed: 'bg-rose-50 text-rose-700 ring-rose-250',
 }
 
 const statusLabel = {
   open: 'Abierto',
-  paused: 'Pausado',
   closed: 'Cerrado',
 }
 
@@ -378,11 +568,21 @@ const roleLabel = {
   soporte: 'Soporte',
 }
 
-export function MetricCard({ label, value }) {
+export function MetricCard({ label, value, theme = 'normal' }) {
+  const classes = theme === 'rose'
+    ? 'border-rose-200 bg-white/95 text-rose-950 shadow-xs'
+    : 'border-zinc-200 bg-white shadow-xs animate-fade-in'
+  const labelClasses = theme === 'rose'
+    ? 'text-rose-600/80'
+    : 'text-zinc-500'
+  const valueClasses = theme === 'rose'
+    ? 'text-rose-950 font-extrabold'
+    : 'text-zinc-950 font-bold'
+
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium text-zinc-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-950">{value}</p>
+    <div className={`rounded-xl border p-4 transition-all duration-300 ${classes}`}>
+      <p className={`text-[10px] font-bold tracking-wider uppercase ${labelClasses}`}>{label}</p>
+      <p className={`mt-1.5 text-2xl ${valueClasses}`}>{value}</p>
     </div>
   )
 }
@@ -395,14 +595,21 @@ export function StatusBadge({ status }) {
   )
 }
 
-function ActiveTurnView({ myEntry, cancelEntry, confirmArrival }) {
+function ActiveTurnView({
+  myEntry,
+  cancelEntry,
+  confirmArrival,
+  notifications,
+  permissionStatus,
+  onRequestPermission,
+}) {
   const isCalled = myEntry.status === 'called'
   const baseWait = myEntry.estimated_wait_minutes || 15
   const waitTimePerPerson = Math.max(5, Math.round(baseWait / 3))
   const dynamicWaitTime = isCalled ? 0 : myEntry.position * waitTimePerPerson
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl">
         {/* Decorative top bar */}
         <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${isCalled ? 'from-emerald-500 to-teal-500' : 'from-orange-500 to-amber-500'}`} />
@@ -452,7 +659,6 @@ function ActiveTurnView({ myEntry, cancelEntry, confirmArrival }) {
             </div>
           </div>
 
-          {/* Notification status card */}
           <div className={`w-full rounded-2xl p-5 text-center ${isCalled ? 'bg-emerald-50 text-emerald-950 border border-emerald-100' : 'bg-amber-50 text-amber-950 border border-amber-100'}`}>
             <h4 className="font-bold text-lg">
               {isCalled ? '🔔 ¡Es tu turno!' : '⏳ Fila activa'}
@@ -462,10 +668,15 @@ function ActiveTurnView({ myEntry, cancelEntry, confirmArrival }) {
                 ? 'Tu mesa está lista y te están esperando en recepción. Por favor, confirma tu llegada usando el botón de abajo.' 
                 : 'Mantente cerca del restaurante. Te enviaremos una notificación cuando sea tu turno.'}
             </p>
+            {isCalled && (
+              <p className="mt-3 text-xs font-bold text-red-600 animate-pulse bg-red-50 border border-red-100 rounded-lg p-2 inline-block">
+                ⚠️ Tienes 5 minutos para entrar, de lo contrario tu turno se perderá.
+              </p>
+            )}
 
             {isCalled && (
               <button
-                className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 animate-bounce"
+                className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 animate-bounce cursor-pointer"
                 onClick={confirmArrival}
                 type="button"
               >
@@ -486,6 +697,163 @@ function ActiveTurnView({ myEntry, cancelEntry, confirmArrival }) {
           </div>
         </div>
       </div>
+
+      <NotificationCenter
+        notifications={notifications}
+        permissionStatus={permissionStatus}
+        onRequestPermission={onRequestPermission}
+      />
     </div>
   )
+}
+
+export function NotificationCenter({ notifications, permissionStatus, onRequestPermission }) {
+  return (
+    <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-zinc-100 pb-3">
+        <div>
+          <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Historial de Notificaciones</h4>
+          <p className="text-xs text-zinc-400 mt-0.5">Alertas de tus turnos y reservas</p>
+        </div>
+        <div>
+          {permissionStatus === 'default' && (
+            <button
+              onClick={onRequestPermission}
+              className="flex items-center gap-1.5 rounded-xl bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:bg-orange-100 transition ring-1 ring-orange-200 cursor-pointer"
+              type="button"
+            >
+              🔔 Activar avisos de escritorio
+            </button>
+          )}
+          {permissionStatus === 'granted' && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Avisos de Chrome activados
+            </span>
+          )}
+          {permissionStatus === 'denied' && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-450">
+              🚫 Avisos bloqueados
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="divide-y divide-zinc-100 max-h-60 overflow-y-auto pr-1">
+        {notifications.length === 0 ? (
+          <p className="py-6 text-center text-xs text-zinc-400 italic">No tienes mensajes recientes</p>
+        ) : (
+          notifications.map((n) => {
+            const channelBadge = {
+              whatsapp: 'bg-emerald-50 text-emerald-700 ring-emerald-200/50',
+              sms: 'bg-teal-50 text-teal-700 ring-teal-200/50',
+              push: 'bg-orange-50 text-orange-700 ring-orange-200/50',
+              email: 'bg-sky-50 text-sky-700 ring-sky-200/50',
+            }[n.channel] || 'bg-zinc-50 text-zinc-650 ring-zinc-200';
+
+            return (
+              <div key={n.id} className="py-3 text-xs space-y-1 hover:bg-zinc-50/50 transition rounded-lg px-2 -mx-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase ring-1 ${channelBadge}`}>
+                    {n.channel}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 font-medium">
+                    {new Date(n.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-zinc-600 leading-relaxed font-medium">{n.message}</p>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CelebrationView({ myEntry, onDismiss }) {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-12">
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-2xl">
+        {/* Confetti decoration / gradient bar */}
+        <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-emerald-400 via-teal-400 to-green-500" />
+        
+        {/* Pulsing Emoji */}
+        <div className="relative flex justify-center mt-4">
+          <div className="absolute h-24 w-24 animate-ping rounded-full bg-emerald-100 opacity-30" style={{ animationDuration: '2s' }} />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-4xl shadow-inner ring-4 ring-emerald-100">
+            🍽️
+          </div>
+        </div>
+
+        <h3 className="mt-8 text-3xl font-black tracking-tight text-zinc-950">¡Buen provecho!</h3>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-wider text-emerald-600">
+          Tu mesa en {myEntry.restaurant_name} está lista
+        </p>
+
+        <p className="mt-4 text-sm leading-relaxed text-zinc-600">
+          El personal del restaurante ha asignado tu mesa y tu turno ha sido liberado con éxito. Por favor, dirígete con el recepcionista para ingresar al local.
+        </p>
+
+        <div className="mt-6 rounded-2xl bg-zinc-50 border border-zinc-100 p-4 space-y-2">
+          <div className="flex justify-between text-xs font-semibold text-zinc-500">
+            <span>Restaurante</span>
+            <span className="text-zinc-900">{myEntry.restaurant_name}</span>
+          </div>
+          <div className="flex justify-between text-xs font-semibold text-zinc-500">
+            <span>Grupo</span>
+            <span className="text-zinc-900">{myEntry.party_size} personas</span>
+          </div>
+          <div className="flex justify-between text-xs font-semibold text-zinc-500">
+            <span>Fecha y Hora</span>
+            <span className="text-zinc-900">
+              {new Date(myEntry.arrived_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={onDismiss}
+          className="mt-8 w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 hover:shadow-lg transition cursor-pointer"
+          type="button"
+        >
+          Entendido · Buscar otro restaurante
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CancellationView({ myEntry, onDismiss }) {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-12">
+      <div className="relative overflow-hidden rounded-3xl border border-red-200 bg-white p-8 text-center shadow-2xl">
+        <div className="absolute top-0 left-0 right-0 h-3 bg-gradient-to-r from-red-400 via-orange-400 to-amber-500" />
+        
+        <div className="relative flex justify-center mt-4">
+          <div className="absolute h-24 w-24 animate-ping rounded-full bg-red-100 opacity-30" style={{ animationDuration: '2s' }} />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-50 text-4xl shadow-inner ring-4 ring-red-100">
+            ⚠️
+          </div>
+        </div>
+
+        <h3 className="mt-8 text-3xl font-black tracking-tight text-zinc-950">Turno Cancelado</h3>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-wider text-red-600">
+          Tu turno en {myEntry.restaurant_name} ha finalizado
+        </p>
+
+        <p className="mt-4 text-sm leading-relaxed text-zinc-600">
+          Lamentamos informarte que tu turno ha sido cancelado por el restaurante o por el sistema de espera. Si consideras que esto es un error, por favor comunícate directamente con la recepción del restaurante.
+        </p>
+
+        <button
+          onClick={onDismiss}
+          className="mt-8 w-full rounded-2xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white hover:bg-zinc-800 transition cursor-pointer"
+          type="button"
+        >
+          Entendido · Regresar al mapa
+        </button>
+      </div>
+    </div>
+  );
 }
