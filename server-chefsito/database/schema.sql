@@ -3,6 +3,22 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+DROP VIEW IF EXISTS v_restaurants_public CASCADE;
+DROP VIEW IF EXISTS v_waitlist_active CASCADE;
+DROP TABLE IF EXISTS hourly_analytics CASCADE;
+DROP TABLE IF EXISTS daily_analytics CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS waitlist_entries CASCADE;
+DROP TABLE IF EXISTS restaurant_staff CASCADE;
+DROP TABLE IF EXISTS refresh_tokens CASCADE;
+DROP TABLE IF EXISTS restaurants CASCADE;
+DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+DROP TYPE IF EXISTS user_role CASCADE;
+DROP TYPE IF EXISTS restaurant_status CASCADE;
+DROP TYPE IF EXISTS waitlist_status CASCADE;
+
 -- ---------------------------------------------------------------------------
 -- Tipos
 -- ---------------------------------------------------------------------------
@@ -182,8 +198,7 @@ SELECT
     FROM waitlist_entries w
     WHERE w.restaurant_id = r.id AND w.status = 'waiting'
   ) AS people_waiting
-FROM restaurants r
-WHERE r.status <> 'closed';
+FROM restaurants r;
 
 CREATE OR REPLACE VIEW v_waitlist_active AS
 SELECT

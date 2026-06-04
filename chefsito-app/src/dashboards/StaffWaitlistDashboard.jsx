@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client.js'
 import { AppShell, MetricCard } from '../components/ui.jsx'
+import { EmptyQueueState } from './GerenteDashboard.jsx'
+import { io as socketIO } from 'socket.io-client'
 
 export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
   const [restaurant, setRestaurant] = useState(null)
@@ -21,8 +23,20 @@ export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
 
   useEffect(() => {
     load()
+    
+    const socket = socketIO(import.meta.env.VITE_API_URL ?? 'http://localhost:4000')
+    
+    socket.on('waitlist:changed', (data) => {
+      console.log('Socket event waitlist:changed received in Staff Dashboard', data)
+      load()
+    })
+
     const interval = setInterval(load, 5000)
-    return () => clearInterval(interval)
+    
+    return () => {
+      clearInterval(interval)
+      socket.disconnect()
+    }
   }, [load])
 
   async function callGuest(entryId) {
@@ -64,7 +78,7 @@ export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <MetricCard label="En fila" value={waitlist.length} />
             <MetricCard label="Espera estimada (Próximo)" value={`${dynamicWaitTime} min`} />
-            <MetricCard label="Estado local" value={restaurant.status === 'open' ? 'Abierto' : restaurant.status === 'paused' ? 'Pausado' : 'Cerrado'} />
+            <MetricCard label="Estado local" value={restaurant.status === 'open' ? 'Abierto' : 'Cerrado'} />
           </div>
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -73,10 +87,7 @@ export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
             </div>
             
             {waitlist.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-8 text-center text-zinc-500">
-                <p className="font-semibold text-zinc-700">Fila vacía</p>
-                <p className="mt-1 text-sm">No hay personas esperando en la fila en este momento.</p>
-              </div>
+              <EmptyQueueState />
             ) : (
               <div className="relative border-l-2 border-zinc-200 pl-6 ml-4 space-y-6 my-4">
                 {waitlist.map((entry) => {

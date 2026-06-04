@@ -65,7 +65,7 @@ router.get('/:id/waitlist', validateToken, requireRoles('recepcionista', 'gerent
 router.put('/:id/status', validateToken, requireRoles('gerente', 'admin'), async (req, res) => {
   const { status } = req.body
 
-  if (!['open', 'paused', 'closed'].includes(status)) {
+  if (!['open', 'closed'].includes(status)) {
     return res.status(400).json({ message: 'Estado inválido' })
   }
 
@@ -81,6 +81,11 @@ router.put('/:id/status', validateToken, requireRoles('gerente', 'admin'), async
        RETURNING id, name, status, estimated_wait_minutes`,
       [status, req.params.id],
     )
+
+    const io = req.app.get('io')
+    if (io) {
+      io.emit('restaurant:status_changed', { id: req.params.id, status })
+    }
 
     return res.json(result.rows[0])
   } catch (error) {

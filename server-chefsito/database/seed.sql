@@ -36,7 +36,7 @@ INSERT INTO users (id, name, email, phone, password_hash, role) VALUES
 
 INSERT INTO restaurants (id, name, cuisine, address, lat, lng, table_count, status, estimated_wait_minutes, manager_id) VALUES
   ('b0000000-0000-4000-8000-000000000001', 'Los Chilaquiles Tec GDL', 'Mexicana',  'Av. General Ramón Corona 2500, Zapopan, Jal.', 20.7342000, -103.4565000, 18, 'open',   18, 'a0000000-0000-4000-8000-000000000005'),
-  ('b0000000-0000-4000-8000-000000000002', 'Burritos Universitaria',  'Tex-Mex',   'Av. Aviación 142, San Juan de Ocotán, Zapopan',20.7295000, -103.4518000, 12, 'paused', 26, NULL),
+  ('b0000000-0000-4000-8000-000000000002', 'Burritos Universitaria',  'Tex-Mex',   'Av. Aviación 142, San Juan de Ocotán, Zapopan',20.7295000, -103.4518000, 12, 'closed', 26, NULL),
   ('b0000000-0000-4000-8000-000000000003', 'Sushi N Boru Valle Real', 'Asiática',  'Av. Santa Margarita 4100, Plaza Real, Zapopan',20.7381000, -103.4492000, 20, 'open',   12, NULL);
 
 INSERT INTO restaurant_staff (restaurant_id, user_id) VALUES
