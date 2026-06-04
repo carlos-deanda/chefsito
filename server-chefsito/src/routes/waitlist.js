@@ -43,6 +43,7 @@ router.get('/my', validateToken, requireRoles('usuario'), async (req, res) => {
        FROM waitlist_entries w
        JOIN restaurants r ON r.id = w.restaurant_id
        WHERE w.user_id = $1
+        AND w.status IN ('waiting', 'called')
        ORDER BY w.registered_at DESC
        LIMIT 1`,
       [req.user.id],
