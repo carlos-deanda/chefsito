@@ -5,6 +5,14 @@ import { AppShell } from '../components/ui.jsx'
 // Importación del mapa corregida
 import MapaRestaurantes from '../components/MapaRestaurantes.jsx'
 
+function getRestaurantDynamicWaitTime(restaurant) {
+  if (!restaurant) return 0
+  const baseWait = restaurant.estimated_wait_minutes || 15
+  const waitTimePerPerson = Math.max(5, Math.round(baseWait / 3))
+  const count = restaurant.people_waiting ?? 0
+  return (count + 1) * waitTimePerPerson
+}
+
 export default function UsuarioDashboard({ user, onLogout }) {
   const [restaurants, setRestaurants] = useState([])
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
@@ -77,8 +85,20 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
     initialLoad()
 
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchDashboardData()
+        if (cancelled) return
+        setRestaurants(data.restaurants)
+        setMyEntry(data.myEntry)
+      } catch (err) {
+        console.error('Error polling waitlist data:', err)
+      }
+    }, 5000)
+
     return () => {
       cancelled = true
+      clearInterval(interval)
     }
   }, [])
 
@@ -127,239 +147,212 @@ export default function UsuarioDashboard({ user, onLogout }) {
   return (
     <AppShell
       onLogout={onLogout}
-      subtitle="Explora restaurantes desde un mapa interactivo y revisa su información"
-      title="Dashboard del cliente"
+      subtitle={myEntry ? `Tienes un turno activo en ${myEntry.restaurant_name}` : "Explora restaurantes desde un mapa interactivo y revisa su información"}
+      title={myEntry ? "Tu Turno Activo" : "Dashboard del cliente"}
       user={user}
     >
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <section className="mb-6 overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-r from-zinc-950 via-zinc-900 to-zinc-800 p-6 text-white shadow-lg">
-        <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr] lg:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">Vista principal del cliente</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Encuentra restaurantes, revisa su información y entra a la fila desde aquí</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
-              Toca un punto en el mapa o selecciona un restaurante desde la lista para ver su dirección, estado, tiempo estimado y cuántas personas hay esperando.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Restaurantes</p>
-              <p className="mt-2 text-3xl font-semibold">{restaurants.length || '0'}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Tu estado</p>
-              <p className="mt-2 text-lg font-semibold">{myEntry ? 'Tienes turno' : 'Libre'}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Vista</p>
-              <p className="mt-2 text-lg font-semibold">Mapa + detalle</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {loading ? (
-        <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
-          <div className="animate-pulse rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="h-6 w-40 rounded bg-zinc-200" />
-            <div className="mt-5 h-105 rounded-3xl bg-zinc-100" />
-          </div>
-          <div className="animate-pulse space-y-4 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="h-6 w-52 rounded bg-zinc-200" />
-            <div className="h-28 rounded-3xl bg-zinc-100" />
-            <div className="h-28 rounded-3xl bg-zinc-100" />
-            <div className="h-12 rounded-2xl bg-zinc-100" />
-          </div>
-        </div>
+      {myEntry ? (
+        <ActiveTurnView
+          myEntry={myEntry}
+          cancelEntry={cancelEntry}
+          confirmArrival={confirmArrival}
+        />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
-          <section className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
-            <div className="border-b border-zinc-200 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-600">Mapa de restaurantes</p>
-                  <h3 className="mt-1 text-xl font-semibold text-zinc-950">Ubicaciones cercanas</h3>
+        <>
+          <section className="mb-6 overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-r from-zinc-950 via-zinc-900 to-zinc-800 p-6 text-white shadow-lg">
+            <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr] lg:items-end">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">Vista principal del cliente</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Encuentra restaurantes, revisa su información y entra a la fila desde aquí</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-300 sm:text-base">
+                  Toca un punto en el mapa o selecciona un restaurante desde la lista para ver su dirección, estado, tiempo estimado y cuántas personas hay esperando.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Restaurantes</p>
+                  <p className="mt-2 text-3xl font-semibold">{restaurants.length || '0'}</p>
                 </div>
-                <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                  {restaurants.length} lugares
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Tu estado</p>
+                  <p className="mt-2 text-lg font-semibold">{myEntry ? 'Tienes turno' : 'Libre'}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">Vista</p>
+                  <p className="mt-2 text-lg font-semibold">Mapa + detalle</p>
                 </div>
               </div>
             </div>
+          </section>
 
-            <div className="grid gap-0 lg:grid-cols-[1.45fr_0.9fr]">
-              <div className="border-b border-zinc-200 p-4 lg:border-b-0 lg:border-r">
-                <div className="relative z-0 h-105 overflow-hidden rounded-3xl border border-zinc-200 shadow-inner">
-                  <MapaRestaurantes 
-                    restaurants={restaurants}
-                    selectedRestaurantId={selectedRestaurant?.id}
-                    onSelectRestaurant={handleSelectRestaurant}
-                  />
-                </div>
+          {loading ? (
+            <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+              <div className="animate-pulse rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div className="h-6 w-40 rounded bg-zinc-200" />
+                <div className="mt-5 h-105 rounded-3xl bg-zinc-100" />
               </div>
-
-              <aside className="space-y-4 p-4">
-                {selectedRestaurant ? (
-                  <>
-                    <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Restaurante seleccionado</p>
-                          <h4 className="mt-1 text-2xl font-semibold text-zinc-950">{selectedRestaurant.name}</h4>
-                        </div>
-                        <StatusBadge status={selectedRestaurant.status} />
-                      </div>
-
-                      <p className="mt-3 text-sm text-zinc-600">{selectedRestaurant.cuisine}</p>
-                      <p className="mt-1 text-sm text-zinc-500">{selectedRestaurant.address}</p>
-
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <MetricCard label="Tiempo estimado" value={`${selectedRestaurant.estimated_wait_minutes} min`} />
-                        <MetricCard label="En fila" value={selectedRestaurant.people_waiting} />
-                      </div>
-
-                      <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
-                        <p className="font-semibold text-zinc-950">Perfil del local</p>
-                        <p className="mt-2">
-                          {selectedRestaurant.status === 'open'
-                            ? 'Está abierto y puedes unirte a la fila desde esta pantalla.'
-                            : selectedRestaurant.status === 'paused'
-                              ? 'El restaurante está pausado. Puedes revisar la información, pero no unirte todavía.'
-                              : 'El restaurante está cerrado por el momento.'}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <label className="text-sm font-medium text-zinc-700">
-                          Personas
-                          <select
-                            className="ml-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm"
-                            onChange={(e) => setPartySize(Number(e.target.value))}
-                            value={partySize}
-                          >
-                            {[1, 2, 3, 4, 5, 6].map((n) => (
-                              <option key={n} value={n}>
-                                {n}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-
-                      <button
-                        className="mt-4 w-full rounded-2xl bg-[#f15a24] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#e04f1c] disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={Boolean(myEntry) || selectedRestaurant.status !== 'open'}
-                        onClick={() => joinQueue(selectedRestaurant.id)}
-                        type="button"
-                      >
-                        {selectedRestaurant.status !== 'open'
-                          ? 'No disponible'
-                          : myEntry
-                            ? 'Ya tienes un turno activo'
-                            : 'Unirme a la fila'}
-                      </button>
+              <div className="animate-pulse space-y-4 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div className="h-6 w-52 rounded bg-zinc-200" />
+                <div className="h-28 rounded-3xl bg-zinc-100" />
+                <div className="h-28 rounded-3xl bg-zinc-100" />
+                <div className="h-12 rounded-2xl bg-zinc-100" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+              <section className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+                <div className="border-b border-zinc-200 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-600">Mapa de restaurantes</p>
+                      <h3 className="mt-1 text-xl font-semibold text-zinc-950">Ubicaciones cercanas</h3>
                     </div>
+                    <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                      {restaurants.length} lugares
+                    </div>
+                  </div>
+                </div>
 
-                    <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                      <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Otros restaurantes</h5>
-                      <div className="mt-3 grid gap-3">
-                        {restaurants
-                          .filter((restaurant) => restaurant.id !== selectedRestaurant.id)
-                          .map((restaurant) => (
+                <div className="grid gap-0 lg:grid-cols-[1.45fr_0.9fr]">
+                  <div className="border-b border-zinc-200 p-4 lg:border-b-0 lg:border-r">
+                    <div className="relative z-0 h-105 overflow-hidden rounded-3xl border border-zinc-200 shadow-inner">
+                      <MapaRestaurantes 
+                        restaurants={restaurants}
+                        selectedRestaurantId={selectedRestaurant?.id}
+                        onSelectRestaurant={handleSelectRestaurant}
+                      />
+                    </div>
+                  </div>
+
+                  <aside className="space-y-4 p-4">
+                    {selectedRestaurant ? (
+                      <>
+                        <div className="rounded-3xl border border-zinc-200 bg-zinc-50 p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Restaurante seleccionado</p>
+                              <h4 className="mt-1 text-2xl font-semibold text-zinc-950">{selectedRestaurant.name}</h4>
+                            </div>
+                            <StatusBadge status={selectedRestaurant.status} />
+                          </div>
+
+                          <p className="mt-3 text-sm text-zinc-600">{selectedRestaurant.cuisine}</p>
+                          <p className="mt-1 text-sm text-zinc-500">{selectedRestaurant.address}</p>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                            <MetricCard label="Tiempo estimado" value={`${getRestaurantDynamicWaitTime(selectedRestaurant)} min`} />
+                            <MetricCard label="En fila" value={selectedRestaurant.people_waiting} />
+                          </div>
+
+                          <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-zinc-600 ring-1 ring-zinc-200">
+                            <p className="font-semibold text-zinc-950">Perfil del local</p>
+                            <p className="mt-2">
+                              {selectedRestaurant.status === 'open'
+                                ? 'Está abierto y puedes unirte a la fila desde esta pantalla.'
+                                : selectedRestaurant.status === 'paused'
+                                  ? 'El restaurante está pausado. Puedes revisar la información, pero no unirte todavía.'
+                                  : 'El restaurante está cerrado por el momento.'}
+                            </p>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <label className="text-sm font-medium text-zinc-700">
+                              Personas
+                              <select
+                                className="ml-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm"
+                                onChange={(e) => setPartySize(Number(e.target.value))}
+                                value={partySize}
+                              >
+                                {[1, 2, 3, 4, 5, 6].map((n) => (
+                                  <option key={n} value={n}>
+                                    {n}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+
+                          <button
+                            className="mt-4 w-full rounded-2xl bg-[#f15a24] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#e04f1c] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={Boolean(myEntry) || selectedRestaurant.status !== 'open'}
+                            onClick={() => joinQueue(selectedRestaurant.id)}
+                            type="button"
+                          >
+                            {selectedRestaurant.status !== 'open'
+                              ? 'No disponible'
+                              : myEntry
+                                ? 'Ya tienes un turno activo'
+                                : 'Unirme a la fila'}
+                          </button>
+                        </div>
+
+                        <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+                          <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Otros restaurantes</h5>
+                          <div className="mt-3 grid gap-3">
+                            {restaurants
+                              .filter((restaurant) => restaurant.id !== selectedRestaurant.id)
+                              .map((restaurant) => (
+                                <button
+                                  key={restaurant.id}
+                                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-left transition hover:border-orange-300 hover:bg-orange-50"
+                                  onClick={() => handleSelectRestaurant(restaurant.id)}
+                                  type="button"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="font-semibold text-zinc-950">{restaurant.name}</p>
+                                      <p className="mt-1 text-sm text-zinc-500">{restaurant.cuisine} · {getRestaurantDynamicWaitTime(restaurant)} min</p>
+                                    </div>
+                                    <StatusBadge status={restaurant.status} />
+                                  </div>
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+                        <p className="font-semibold text-zinc-700">Explora el mapa</p>
+                        <p className="mt-1">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
+                      </div>
+                    )}
+
+                    {restaurants.length > 0 && (
+                      <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
+                        <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista completa de locales</h5>
+                        <div className="mt-3 space-y-3">
+                          {restaurants.map((restaurant) => (
                             <button
                               key={restaurant.id}
-                              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-left transition hover:border-orange-300 hover:bg-orange-50"
+                              className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                                restaurant.id === selectedRestaurant?.id
+                                  ? 'border-orange-300 bg-orange-50'
+                                  : 'border-zinc-200 bg-zinc-50 hover:border-orange-300 hover:bg-orange-50'
+                              }`}
                               onClick={() => handleSelectRestaurant(restaurant.id)}
                               type="button"
                             >
-                              <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="font-semibold text-zinc-950">{restaurant.name}</p>
-                                  <p className="mt-1 text-sm text-zinc-500">{restaurant.cuisine} · {restaurant.estimated_wait_minutes} min</p>
+                                  <p className="mt-1 text-sm text-zinc-500">{restaurant.address}</p>
                                 </div>
                                 <StatusBadge status={restaurant.status} />
                               </div>
                             </button>
                           ))}
+                        </div>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  // MENSAJE INICIAL ELEGANTE: Cuando no hay ningún restaurante seleccionado todavía
-                  <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
-                    <p className="font-semibold text-zinc-700">Explora el mapa</p>
-                    <p className="mt-1">Selecciona un marcador en el mapa o búscalo en la lista inferior para ver los detalles de la fila de espera.</p>
-                  </div>
-                )}
-
-                {restaurants.length > 0 && (
-                  <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
-                    <h5 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Lista completa de locales</h5>
-                    <div className="mt-3 space-y-3">
-                      {restaurants.map((restaurant) => (
-                        <button
-                          key={restaurant.id}
-                          className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                            restaurant.id === selectedRestaurant?.id
-                              ? 'border-orange-300 bg-orange-50'
-                              : 'border-zinc-200 bg-zinc-50 hover:border-orange-300 hover:bg-orange-50'
-                          }`}
-                          onClick={() => handleSelectRestaurant(restaurant.id)}
-                          type="button"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-semibold text-zinc-950">{restaurant.name}</p>
-                              <p className="mt-1 text-sm text-zinc-500">{restaurant.address}</p>
-                            </div>
-                            <StatusBadge status={restaurant.status} />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </aside>
+                    )}
+                  </aside>
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
-      )}
-
-      {myEntry && (
-        <section className="mt-6 rounded-3xl border border-orange-200 bg-linear-to-r from-orange-50 to-white p-5 shadow-sm">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-600">Tu turno activo</p>
-              <h2 className="text-2xl font-semibold text-zinc-950">{myEntry.restaurant_name}</h2>
-              <p className="mt-1 text-sm text-zinc-600">{myEntry.restaurant_address}</p>
-            </div>
-            <p className="text-sm text-zinc-500">Esperas estimadas: {myEntry.estimated_wait_minutes} min</p>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <MetricCard label="Posición" value={`#${myEntry.position}`} />
-            <MetricCard label="Personas" value={myEntry.party_size} />
-            <MetricCard label="Estado" value={myEntry.status === 'called' ? 'Llamado' : 'Esperando'} />
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold"
-              onClick={cancelEntry}
-              type="button"
-            >
-              Cancelar turno
-            </button>
-            {myEntry.status === 'called' && (
-              <button
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                onClick={confirmArrival}
-                type="button"
-              >
-                Confirmar llegada
-              </button>
-            )}
-          </div>
-        </section>
+          )}
+        </>
       )}
     </AppShell>
   )
@@ -399,5 +392,100 @@ export function StatusBadge({ status }) {
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusStyles[status] ?? statusStyles.closed}`}>
       {statusLabel[status] ?? status}
     </span>
+  )
+}
+
+function ActiveTurnView({ myEntry, cancelEntry, confirmArrival }) {
+  const isCalled = myEntry.status === 'called'
+  const baseWait = myEntry.estimated_wait_minutes || 15
+  const waitTimePerPerson = Math.max(5, Math.round(baseWait / 3))
+  const dynamicWaitTime = isCalled ? 0 : myEntry.position * waitTimePerPerson
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl">
+        {/* Decorative top bar */}
+        <div className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${isCalled ? 'from-emerald-500 to-teal-500' : 'from-orange-500 to-amber-500'}`} />
+
+        <div className="flex flex-col items-center space-y-6">
+          {/* Restaurant Header */}
+          <div className="text-center space-y-2">
+            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${isCalled ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-orange-50 text-orange-700 ring-1 ring-orange-200'}`}>
+              {isCalled ? 'Mesa lista' : 'En fila de espera'}
+            </span>
+            <h2 className="text-3xl font-extrabold tracking-tight text-zinc-950 sm:text-4xl">
+              {myEntry.restaurant_name}
+            </h2>
+            <p className="text-sm text-zinc-500 max-w-md mx-auto">
+              {myEntry.restaurant_address}
+            </p>
+          </div>
+
+          {/* Central Queue Circle Indicator */}
+          <div className="relative flex items-center justify-center">
+            <div className={`absolute h-48 w-48 animate-ping rounded-full opacity-5 ${isCalled ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ animationDuration: '3s' }} />
+            
+            <div className={`flex h-40 w-40 flex-col items-center justify-center rounded-full border-4 bg-zinc-50 shadow-inner ${isCalled ? 'border-emerald-500/20' : 'border-orange-500/20'}`}>
+              <span className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-400">Posición</span>
+              <span className={`text-5xl font-black ${isCalled ? 'text-emerald-600' : 'text-orange-600'}`}>
+                #{myEntry.position}
+              </span>
+              <span className="mt-1 text-xs text-zinc-500 font-semibold">
+                {myEntry.position === 1 ? '¡Eres el siguiente!' : `Faltan ${myEntry.position - 1} personas`}
+              </span>
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid w-full gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 text-center">
+              <span className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Espera estimada</span>
+              <p className="mt-1 text-2xl font-bold text-zinc-950">
+                {dynamicWaitTime} min
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 text-center">
+              <span className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Tamaño del grupo</span>
+              <p className="mt-1 text-2xl font-bold text-zinc-950">
+                {myEntry.party_size} personas
+              </p>
+            </div>
+          </div>
+
+          {/* Notification status card */}
+          <div className={`w-full rounded-2xl p-5 text-center ${isCalled ? 'bg-emerald-50 text-emerald-950 border border-emerald-100' : 'bg-amber-50 text-amber-950 border border-amber-100'}`}>
+            <h4 className="font-bold text-lg">
+              {isCalled ? '🔔 ¡Es tu turno!' : '⏳ Fila activa'}
+            </h4>
+            <p className="mt-2 text-sm leading-relaxed">
+              {isCalled 
+                ? 'Tu mesa está lista y te están esperando en recepción. Por favor, confirma tu llegada usando el botón de abajo.' 
+                : 'Mantente cerca del restaurante. Te enviaremos una notificación cuando sea tu turno.'}
+            </p>
+
+            {isCalled && (
+              <button
+                className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 animate-bounce"
+                onClick={confirmArrival}
+                type="button"
+              >
+                Confirmar mi llegada
+              </button>
+            )}
+          </div>
+
+          {/* Action cancellation */}
+          <div className="pt-2 w-full">
+            <button
+              className="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
+              onClick={cancelEntry}
+              type="button"
+            >
+              Cancelar mi turno
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
