@@ -48,13 +48,13 @@ INSERT INTO restaurant_staff (restaurant_id, user_id) VALUES
 -- Fila de espera activa (Conectada a: Los Chilaquiles Tec GDL)
 -- ---------------------------------------------------------------------------
 
-INSERT INTO waitlist_entries (id, restaurant_id, user_id, party_size, status, position, registered_at) VALUES
-  ('c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 2, 'waiting', 1, NOW() - INTERVAL '8 minutes'),
-  ('c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 4, 'waiting', 2, NOW() - INTERVAL '14 minutes'),
-  ('c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000007', 3, 'waiting', 3, NOW() - INTERVAL '19 minutes');
+INSERT INTO waitlist_entries (id, restaurant_id, user_id, party_size, status, position, registered_at, arrived_at) VALUES
+  ('c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 2, 'arrived', 1, NOW() - INTERVAL '8 minutes', NOW() - INTERVAL '5 minutes'),
+  ('c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 4, 'arrived', 2, NOW() - INTERVAL '14 minutes', NOW() - INTERVAL '10 minutes'),
+  ('c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000007', 3, 'arrived', 3, NOW() - INTERVAL '19 minutes', NOW() - INTERVAL '12 minutes');
 
-INSERT INTO waitlist_entries (id, restaurant_id, user_id, party_size, status, position, registered_at, called_at) VALUES
-  ('c0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 2, 'called', 1, NOW() - INTERVAL '22 minutes', NOW() - INTERVAL '2 minutes');
+INSERT INTO waitlist_entries (id, restaurant_id, user_id, party_size, status, position, registered_at, called_at, cancelled_at) VALUES
+  ('c0000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 2, 'cancelled', 1, NOW() - INTERVAL '22 minutes', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '1 minute');
 
 -- Historial cerrado (para analítica)
 INSERT INTO waitlist_entries (restaurant_id, user_id, party_size, status, position, registered_at, arrived_at) VALUES

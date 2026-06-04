@@ -1,6 +1,8 @@
 const demoAccounts = [
   { label: 'Admin', email: 'admin@chefsito.mx' },
-  { label: 'Cliente', email: 'mariana@demo.mx' },
+  { label: 'Cliente 1 (Mariana)', email: 'mariana@demo.mx' },
+  { label: 'Cliente 2 (Diego)', email: 'diego@demo.mx' },
+  { label: 'Cliente 3 (Sofía)', email: 'sofia@demo.mx' },
   { label: 'Recepcionista', email: 'recepcion@comalroma.mx' },
   { label: 'Gerente', email: 'gerente@comalroma.mx' },
   { label: 'Soporte', email: 'soporte@chefsito.mx' },

@@ -76,13 +76,21 @@ router.delete('/:id', validateToken, requireRoles('usuario'), async (req, res) =
       `UPDATE waitlist_entries
        SET status = 'cancelled', cancelled_at = NOW()
        WHERE id = $1 AND user_id = $2 AND status IN ('waiting', 'called')
-       RETURNING id`,
+       RETURNING id, restaurant_id, position`,
       [req.params.id, req.user.id],
     )
 
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Turno no encontrado' })
     }
+
+    const { restaurant_id, position } = result.rows[0]
+    await query(
+      `UPDATE waitlist_entries
+       SET position = position - 1
+       WHERE restaurant_id = $1 AND status IN ('waiting', 'called') AND position > $2`,
+      [restaurant_id, position],
+    )
 
     return res.status(204).send()
   } catch (error) {
@@ -97,13 +105,21 @@ router.put('/:id/confirm', validateToken, requireRoles('usuario'), async (req, r
       `UPDATE waitlist_entries
        SET status = 'arrived', arrived_at = NOW()
        WHERE id = $1 AND user_id = $2 AND status = 'called'
-       RETURNING id, status`,
+       RETURNING id, restaurant_id, position, status`,
       [req.params.id, req.user.id],
     )
 
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Turno no encontrado o no ha sido llamado' })
     }
+
+    const { restaurant_id, position } = result.rows[0]
+    await query(
+      `UPDATE waitlist_entries
+       SET position = position - 1
+       WHERE restaurant_id = $1 AND status IN ('waiting', 'called') AND position > $2`,
+      [restaurant_id, position],
+    )
 
     return res.json(result.rows[0])
   } catch (error) {
@@ -150,10 +166,56 @@ router.post('/:id/call', validateToken, requireRoles('recepcionista', 'gerente')
   }
 })
 
+router.post('/:id/arrive', validateToken, requireRoles('recepcionista', 'gerente'), async (req, res) => {
+  try {
+    const entryResult = await query(
+      `SELECT restaurant_id, position FROM waitlist_entries WHERE id = $1 AND status IN ('waiting', 'called')`,
+      [req.params.id],
+    )
+
+    const entry = entryResult.rows[0]
+
+    if (!entry) {
+      return res.status(404).json({ message: 'Turno no encontrado o ya no está activo' })
+    }
+
+    const allowed = await assertRestaurantAccess(req.user.id, req.user.role, entry.restaurant_id)
+
+    if (!allowed) {
+      return res.status(403).json({ message: 'Sin acceso a este restaurante' })
+    }
+
+    const result = await query(
+      `UPDATE waitlist_entries
+       SET status = 'arrived', arrived_at = NOW()
+       WHERE id = $1 AND status IN ('waiting', 'called')
+       RETURNING id, restaurant_id, position, status, arrived_at`,
+      [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'El turno no se puede marcar como llegado/liberado' })
+    }
+
+    const { restaurant_id, position } = result.rows[0]
+    await query(
+      `UPDATE waitlist_entries
+       SET position = position - 1
+       WHERE restaurant_id = $1 AND status IN ('waiting', 'called') AND position > $2`,
+      [restaurant_id, position],
+    )
+
+    return res.json(result.rows[0])
+  } catch (error) {
+    console.error('waitlist arrive', error)
+    return res.status(500).json({ message: 'Error al liberar el turno' })
+  }
+})
+
 router.delete('/:id/remove', validateToken, requireRoles('recepcionista', 'gerente'), async (req, res) => {
   try {
     const entryResult = await query(
-      `SELECT restaurant_id FROM waitlist_entries WHERE id = $1`,
+      `SELECT restaurant_id, position FROM waitlist_entries WHERE id = $1 AND status IN ('waiting', 'called')`,
       [req.params.id],
     )
 
@@ -169,11 +231,24 @@ router.delete('/:id/remove', validateToken, requireRoles('recepcionista', 'geren
       return res.status(403).json({ message: 'Sin acceso a este restaurante' })
     }
 
-    await query(
+    const result = await query(
       `UPDATE waitlist_entries
        SET status = 'cancelled', cancelled_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1 AND status IN ('waiting', 'called')
+       RETURNING id, restaurant_id, position`,
       [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'El turno no se puede eliminar' })
+    }
+
+    const { restaurant_id, position } = result.rows[0]
+    await query(
+      `UPDATE waitlist_entries
+       SET position = position - 1
+       WHERE restaurant_id = $1 AND status IN ('waiting', 'called') AND position > $2`,
+      [restaurant_id, position],
     )
 
     return res.status(204).send()
