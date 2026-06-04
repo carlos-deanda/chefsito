@@ -13,6 +13,13 @@ TRUNCATE TABLE
   restaurant_staff,
   refresh_tokens,
   restaurants,
+  user_profiles,
+  publicaciones,
+  user_roles_junction,
+  roles,
+  estudiante_cursos,
+  estudiantes,
+  cursos,
   users
 RESTART IDENTITY CASCADE;
 
@@ -87,3 +94,55 @@ INSERT INTO hourly_analytics (restaurant_id, report_date, hour, entries) VALUES
   ('b0000000-0000-4000-8000-000000000001', CURRENT_DATE, 18, 35),
   ('b0000000-0000-4000-8000-000000000001', CURRENT_DATE, 19, 39),
   ('b0000000-0000-4000-8000-000000000001', CURRENT_DATE, 20, 33);
+
+-- ---------------------------------------------------------------------------
+-- Relación 1:1 -> Perfiles de Usuario
+-- ---------------------------------------------------------------------------
+INSERT INTO user_profiles (user_id, bio, avatar_url, preferences) VALUES
+  ('a0000000-0000-4000-8000-000000000002', 'Amante de la comida mexicana y los buenos chilaquiles.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', '{"notifications_enabled": true, "favorite_cuisine": "Mexicana"}'),
+  ('a0000000-0000-4000-8000-000000000003', 'Foodie de corazón. Busco siempre los mejores tacos de la ciudad.', 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', '{"notifications_enabled": true, "favorite_cuisine": "Tacos"}'),
+  ('a0000000-0000-4000-8000-000000000007', 'Estudiante de ingeniería. Me encanta cenar sushi después de clases.', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150', '{"notifications_enabled": false, "favorite_cuisine": "Asiática"}');
+
+-- ---------------------------------------------------------------------------
+-- Relación 1:N -> Publicaciones / Novedades
+-- ---------------------------------------------------------------------------
+INSERT INTO publicaciones (user_id, title, content) VALUES
+  ('a0000000-0000-4000-8000-000000000005', '¡Chilaquiles gratis en tu cumpleaños!', 'Ven a celebrar con nosotros en Los Chilaquiles Tec GDL y recibe una porción gratis presentando tu credencial de estudiante o INE.'),
+  ('a0000000-0000-4000-8000-000000000005', 'Horario especial de fin de año', 'Informamos a todos nuestros clientes que el 31 de diciembre cerraremos a las 16:00 horas. ¡Felices fiestas a todos!'),
+  ('a0000000-0000-4000-8000-000000000001', 'Nueva sucursal en camino', 'Estamos afinando detalles para la apertura de nuestra nueva sucursal cerca de la universidad. ¡Espérala pronto!');
+
+-- ---------------------------------------------------------------------------
+-- Relación N:M -> Roles y Asignaciones
+-- ---------------------------------------------------------------------------
+INSERT INTO roles (id, name, description) VALUES
+  ('e0000000-0000-4000-8000-000000000001', 'Administrador Global', 'Control total sobre la plataforma, restaurantes y configuraciones.'),
+  ('e0000000-0000-4000-8000-000000000002', 'Cliente General', 'Usuario regular de la plataforma que busca locales y hace fila.'),
+  ('e0000000-0000-4000-8000-000000000003', 'Personal de Recepción', 'Gestiona turnos, llama comensales y valida llegadas.'),
+  ('e0000000-0000-4000-8000-000000000004', 'Gerente de Sucursal', 'Administra el menú, horarios, métricas y personal de su local.');
+
+INSERT INTO user_roles_junction (user_id, role_id) VALUES
+  ('a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001'), -- admin
+  ('a0000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-000000000002'), -- usuario
+  ('a0000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-000000000002'), -- usuario
+  ('a0000000-0000-4000-8000-000000000004', 'e0000000-0000-4000-8000-000000000003'), -- recepcionista
+  ('a0000000-0000-4000-8000-000000000005', 'e0000000-0000-4000-8000-000000000004'), -- gerente
+  ('a0000000-0000-4000-8000-000000000007', 'e0000000-0000-4000-8000-000000000002'); -- usuario
+
+-- ---------------------------------------------------------------------------
+-- Relación N:M -> Demo Académica (Estudiantes <-> Cursos)
+-- ---------------------------------------------------------------------------
+INSERT INTO estudiantes (id, name, email) VALUES
+  ('f0000000-0000-4000-8000-000000000001', 'Juan Pérez', 'juan.perez@tec.mx'),
+  ('f0000000-0000-4000-8000-000000000002', 'María Gómez', 'maria.gomez@tec.mx'),
+  ('f0000000-0000-4000-8000-000000000003', 'Pedro Rodríguez', 'pedro.rod@tec.mx');
+
+INSERT INTO cursos (id, code, name, credits) VALUES
+  ('90000000-0000-4000-8000-000000000001', 'TC2007B', 'Construcción de Software', 5),
+  ('90000000-0000-4000-8000-000000000002', 'TC3002B', 'Bases de Datos Avanzadas', 4),
+  ('90000000-0000-4000-8000-000000000003', 'TC2008B', 'Desarrollo de Aplicaciones Web', 3);
+
+INSERT INTO estudiante_cursos (estudiante_id, curso_id) VALUES
+  ('f0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000001'),
+  ('f0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000002'),
+  ('f0000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001'),
+  ('f0000000-0000-4000-8000-000000000003', '90000000-0000-4000-8000-000000000003');

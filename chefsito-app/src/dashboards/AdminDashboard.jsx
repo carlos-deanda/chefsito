@@ -5,6 +5,8 @@ import AdminAnalyticsPage from '../components/admin/views/AdminAnalyticsPage.jsx
 import AdminDashboardHome from '../components/admin/views/AdminDashboardHome.jsx'
 import AdminRestaurantesPage from '../components/admin/views/AdminRestaurantesPage.jsx'
 import AdminStaffPage from '../components/admin/views/AdminStaffPage.jsx'
+import AdminPublicacionesPage from '../components/admin/views/AdminPublicacionesPage.jsx'
+import AdminAcademicPage from '../components/admin/views/AdminAcademicPage.jsx'
 
 export default function AdminDashboard({ user, onLogout }) {
   const [overview, setOverview] = useState(null)
@@ -84,6 +86,10 @@ export default function AdminDashboard({ user, onLogout }) {
             restaurantStats={restaurantStats}
           />
         )
+      case 'anuncios':
+        return <AdminPublicacionesPage />
+      case 'academic':
+        return <AdminAcademicPage />
       case 'dashboard':
       default:
         return (

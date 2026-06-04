@@ -260,6 +260,248 @@ export default function GerenteDashboard({ user, onLogout }) {
           </div>
         )}
       </section>
+
+      {/* SECCIÓN DE NOVEDADES DEL RESTAURANTE */}
+      <GerentePublicacionesSection user={user} />
     </AppShell>
+  )
+}
+
+export function GerentePublicacionesSection({ user }) {
+  const [publicaciones, setPublicaciones] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [editingPost, setEditingPost] = useState(null)
+
+  const fetchPosts = async () => {
+    setLoading(true)
+    try {
+      const res = await api('/publicaciones')
+      // Filtrar para mostrar solo las del propio gerente
+      const mine = (res.publicaciones || []).filter((p) => p.user_id === user.id)
+      setPublicaciones(mine)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!title.trim() || !content.trim()) return
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await api('/publicaciones', {
+        method: 'POST',
+        body: JSON.stringify({ title, content }),
+      })
+      setSuccess(res.message || 'Anuncio publicado.')
+      setTitle('')
+      setContent('')
+      await fetchPosts()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEdit = async (e) => {
+    e.preventDefault()
+    if (!editingPost.title.trim() || !editingPost.content.trim()) return
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await api(`/publicaciones/${editingPost.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title: editingPost.title, content: editingPost.content }),
+      })
+      setSuccess(res.message || 'Anuncio actualizado.')
+      setEditingPost(null)
+      await fetchPosts()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (postId) => {
+    if (!window.confirm('¿Deseas eliminar este anuncio?')) return
+    try {
+      await api(`/publicaciones/${postId}`, { method: 'DELETE' })
+      alert('Anuncio eliminado.')
+      await fetchPosts()
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  return (
+    <div className="grid gap-6 mt-6 lg:grid-cols-[0.8fr_1.2fr]">
+      {/* Crear Publicación */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4">
+          📢 Publicar Novedad de la Sucursal
+        </h3>
+        <form onSubmit={handleCreate} className="space-y-4">
+          {error && !editingPost && <p className="text-xs text-red-650 bg-red-50 p-2.5 rounded-xl border border-red-100">{error}</p>}
+          {success && !editingPost && <p className="text-xs text-emerald-650 bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">{success}</p>}
+          
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Título del Anuncio</label>
+            <input
+              type="text"
+              required
+              placeholder="Ej. ¡Chilaquiles gratis en tu cumpleaños!"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Contenido</label>
+            <textarea
+              required
+              rows={4}
+              placeholder="Detalla la promoción o aviso para los clientes..."
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-xl bg-[#f15a24] hover:bg-[#e04f1c] py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+          >
+            {submitting ? 'Publicando...' : 'Publicar'}
+          </button>
+        </form>
+      </div>
+
+      {/* Historial de Publicaciones del Gerente */}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h3 className="mb-4 font-bold text-zinc-950 border-b border-zinc-100 pb-3">
+          Tus Anuncios Activos ({publicaciones.length})
+        </h3>
+        
+        {loading ? (
+          <p className="py-8 text-center text-xs text-zinc-500">Cargando anuncios...</p>
+        ) : (
+          <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+            {publicaciones.map((p) => (
+              <div key={p.id} className="relative rounded-xl border border-zinc-100 bg-zinc-55/30 p-4">
+                <div className="absolute right-3 top-3 flex gap-1">
+                  <button
+                    onClick={() => {
+                      setEditingPost({ ...p })
+                      setError('')
+                      setSuccess('')
+                    }}
+                    className="rounded-lg p-1 hover:bg-zinc-100 text-zinc-650 cursor-pointer text-xs"
+                    type="button"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p.id)}
+                    className="rounded-lg p-1 hover:bg-red-50 text-red-500 cursor-pointer text-xs"
+                    type="button"
+                  >
+                    🗑️
+                  </button>
+                </div>
+                <h4 className="font-bold text-zinc-950 pr-12 text-sm">{p.title}</h4>
+                <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{new Date(p.created_at).toLocaleDateString()}</p>
+                <p className="mt-2 text-xs text-zinc-600 leading-relaxed whitespace-pre-wrap">{p.content}</p>
+              </div>
+            ))}
+            {publicaciones.length === 0 && (
+              <p className="py-12 text-center text-xs text-zinc-400 italic">No has publicado ningún anuncio aún.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Modal de edición */}
+      {editingPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+              <h3 className="text-lg font-bold text-zinc-950">Editar Anuncio</h3>
+              <button
+                onClick={() => setEditingPost(null)}
+                className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 cursor-pointer"
+                type="button"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEdit} className="mt-4 space-y-4">
+              {error && <p className="text-xs text-red-650 bg-red-55 p-2 rounded-lg">{error}</p>}
+              {success && <p className="text-xs text-emerald-650 bg-emerald-55 p-2 rounded-lg">{success}</p>}
+              
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Título</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  value={editingPost.title || ''}
+                  onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Contenido</label>
+                <textarea
+                  required
+                  rows={4}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"
+                  value={editingPost.content || ''}
+                  onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4">
+                <button
+                  onClick={() => setEditingPost(null)}
+                  type="button"
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-650 hover:bg-zinc-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded-xl bg-[#f15a24] hover:bg-[#e04f1c] px-4 py-2 text-sm font-semibold text-white cursor-pointer"
+                >
+                  {submitting ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

@@ -28,6 +28,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
   // Nuevos estados para el historial de notificaciones y permisos de escritorio
   const [notifications, setNotifications] = useState([])
+  const [publicaciones, setPublicaciones] = useState([])
   const [permissionStatus, setPermissionStatus] = useState(() => {
     return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   })
@@ -101,6 +102,9 @@ export default function UsuarioDashboard({ user, onLogout }) {
       
       await fetchNotificationsList()
       
+      const pubRes = await api('/publicaciones')
+      setPublicaciones(pubRes.publicaciones || [])
+      
       setSelectedRestaurantId((current) => {
         if (current && data.restaurants.some((restaurant) => restaurant.id === current)) {
           return current
@@ -122,9 +126,10 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
     async function initialLoad() {
       try {
-        const [data, notifRes] = await Promise.all([
+        const [data, notifRes, pubRes] = await Promise.all([
           fetchDashboardData(),
-          api('/waitlist/notifications')
+          api('/waitlist/notifications'),
+          api('/publicaciones'),
         ])
 
         if (cancelled) return
@@ -132,6 +137,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
         setNotifications(notifRes.notifications || [])
+        setPublicaciones(pubRes.publicaciones || [])
         setSelectedRestaurantId(null)
         
         setError('')
@@ -150,14 +156,16 @@ export default function UsuarioDashboard({ user, onLogout }) {
 
     async function refreshData() {
       try {
-        const [data, notifRes] = await Promise.all([
+        const [data, notifRes, pubRes] = await Promise.all([
           fetchDashboardData(),
-          api('/waitlist/notifications')
+          api('/waitlist/notifications'),
+          api('/publicaciones'),
         ])
         if (cancelled) return
         setRestaurants(data.restaurants)
         setMyEntry(data.myEntry)
         setNotifications(notifRes.notifications || [])
+        setPublicaciones(pubRes.publicaciones || [])
       } catch (err) {
         console.error('Error refreshing waitlist data:', err)
       }
@@ -323,6 +331,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
           notifications={notifications}
           permissionStatus={permissionStatus}
           onRequestPermission={handleRequestPermission}
+          publicaciones={publicaciones}
         />
       ) : isArrivedUnacknowledged ? (
         <CelebrationView
@@ -653,6 +662,10 @@ export default function UsuarioDashboard({ user, onLogout }) {
                       </div>
                     )}
 
+                    <PublicacionesCenter
+                      publicaciones={publicaciones}
+                    />
+
                     <NotificationCenter
                       notifications={notifications}
                       permissionStatus={permissionStatus}
@@ -723,6 +736,7 @@ function ActiveTurnView({
   notifications,
   permissionStatus,
   onRequestPermission,
+  publicaciones,
 }) {
   const isCalled = myEntry.status === 'called'
   const baseWait = myEntry.estimated_wait_minutes || 15
@@ -824,6 +838,7 @@ function ActiveTurnView({
         permissionStatus={permissionStatus}
         onRequestPermission={onRequestPermission}
       />
+      <PublicacionesCenter publicaciones={publicaciones} />
     </div>
   )
 }
@@ -974,6 +989,39 @@ function CancellationView({ myEntry, onDismiss }) {
         >
           Entendido · Regresar al mapa
         </button>
+      </div>
+    </div>
+  );
+}
+
+export function PublicacionesCenter({ publicaciones }) {
+  return (
+    <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4">
+      <div>
+        <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">Anuncios y Novedades</h4>
+        <p className="text-xs text-zinc-400 mt-0.5">Novedades de los restaurantes en vivo</p>
+      </div>
+
+      <div className="divide-y divide-zinc-100 max-h-60 overflow-y-auto pr-1">
+        {publicaciones.length === 0 ? (
+          <p className="py-6 text-center text-xs text-zinc-400 italic">No hay novedades registradas</p>
+        ) : (
+          publicaciones.map((p) => (
+            <div key={p.id} className="py-3 text-xs space-y-1.5 hover:bg-zinc-50/50 transition rounded-lg px-2 -mx-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-zinc-950 text-sm">{p.title}</span>
+                <span className="text-[10px] text-zinc-400 font-medium shrink-0">
+                  {new Date(p.created_at).toLocaleDateString([], { day: '2-digit', month: 'short' })}
+                </span>
+              </div>
+              <p className="text-zinc-650 leading-relaxed font-medium">{p.content}</p>
+              <div className="flex items-center gap-1 text-[9px] text-zinc-450 font-bold">
+                <span>Por: {p.author_name}</span>
+                <span className="rounded-md bg-orange-50 px-1 py-0.5 text-orange-600 ring-1 ring-orange-200/50 capitalize">{p.author_role}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

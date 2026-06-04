@@ -15,6 +15,8 @@ const navItems = [
   { id: 'restaurantes', label: 'Restaurantes', Icon: IconRestaurant },
   { id: 'staff', label: 'Staff', Icon: IconStaff },
   { id: 'analytics', label: 'Analytics', Icon: IconAnalytics },
+  { id: 'anuncios', label: 'Anuncios (1:N)', Icon: IconBell },
+  { id: 'academic', label: 'Demo N:M Académica', Icon: IconSupport },
 ]
 
 export default function AdminLayout({
