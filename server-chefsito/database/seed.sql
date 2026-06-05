@@ -15,8 +15,6 @@ TRUNCATE TABLE
   restaurants,
   user_profiles,
   publicaciones,
-  user_roles_junction,
-  roles,
   restaurant_amenities,
   amenities,
   users
@@ -109,23 +107,6 @@ INSERT INTO publicaciones (user_id, title, content) VALUES
   ('a0000000-0000-4000-8000-000000000005', '¡Chilaquiles gratis en tu cumpleaños!', 'Ven a celebrar con nosotros en Los Chilaquiles Tec GDL y recibe una porción gratis presentando tu credencial de estudiante o INE.'),
   ('a0000000-0000-4000-8000-000000000005', 'Horario especial de fin de año', 'Informamos a todos nuestros clientes que el 31 de diciembre cerraremos a las 16:00 horas. ¡Felices fiestas a todos!'),
   ('a0000000-0000-4000-8000-000000000001', 'Nueva sucursal en camino', 'Estamos afinando detalles para la apertura de nuestra nueva sucursal cerca de la universidad. ¡Espérala pronto!');
-
--- ---------------------------------------------------------------------------
--- Relación N:M -> Roles y Asignaciones
--- ---------------------------------------------------------------------------
-INSERT INTO roles (id, name, description) VALUES
-  ('e0000000-0000-4000-8000-000000000001', 'Administrador Global', 'Control total sobre la plataforma, restaurantes y configuraciones.'),
-  ('e0000000-0000-4000-8000-000000000002', 'Cliente General', 'Usuario regular de la plataforma que busca locales y hace fila.'),
-  ('e0000000-0000-4000-8000-000000000003', 'Personal de Recepción', 'Gestiona turnos, llama comensales y valida llegadas.'),
-  ('e0000000-0000-4000-8000-000000000004', 'Gerente de Sucursal', 'Administra el menú, horarios, métricas y personal de su local.');
-
-INSERT INTO user_roles_junction (user_id, role_id) VALUES
-  ('a0000000-0000-4000-8000-000000000001', 'e0000000-0000-4000-8000-000000000001'), -- admin
-  ('a0000000-0000-4000-8000-000000000002', 'e0000000-0000-4000-8000-000000000002'), -- usuario
-  ('a0000000-0000-4000-8000-000000000003', 'e0000000-0000-4000-8000-000000000002'), -- usuario
-  ('a0000000-0000-4000-8000-000000000004', 'e0000000-0000-4000-8000-000000000003'), -- recepcionista
-  ('a0000000-0000-4000-8000-000000000005', 'e0000000-0000-4000-8000-000000000004'), -- gerente
-  ('a0000000-0000-4000-8000-000000000007', 'e0000000-0000-4000-8000-000000000002'); -- usuario
 
 -- ---------------------------------------------------------------------------
 -- Relación N:M -> Amenidades y Asignaciones

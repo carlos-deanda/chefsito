@@ -48,21 +48,8 @@ CREATE TYPE waitlist_status AS ENUM (
 );
 
 -- ---------------------------------------------------------------------------
--- Usuarios y permisos por rol
+-- Permisos por rol y usuarios
 -- ---------------------------------------------------------------------------
-
-CREATE TABLE users (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          VARCHAR(120) NOT NULL,
-  email         VARCHAR(255) NOT NULL UNIQUE,
-  phone         VARCHAR(20),
-  password_hash VARCHAR(255) NOT NULL,
-  role          user_role NOT NULL DEFAULT 'usuario',
-  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE role_permissions (
   role                   user_role PRIMARY KEY,
   can_manage_platform    BOOLEAN NOT NULL DEFAULT FALSE,
@@ -79,6 +66,18 @@ INSERT INTO role_permissions (role, can_manage_platform, can_manage_restaurant, 
   ('recepcionista', FALSE, FALSE, TRUE,  FALSE, FALSE, 'Mostrador: gestiona la fila y llama turnos'),
   ('gerente',       FALSE, TRUE,  TRUE,  FALSE, TRUE,  'Gerente del local: estado, personal y reportes'),
   ('soporte',       FALSE, FALSE, FALSE, FALSE, TRUE,  'Soporte de plataforma: consulta y asistencia (solo lectura)');
+
+CREATE TABLE users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          VARCHAR(120) NOT NULL,
+  email         VARCHAR(255) NOT NULL UNIQUE,
+  phone         VARCHAR(20),
+  password_hash VARCHAR(255) NOT NULL,
+  role          user_role NOT NULL DEFAULT 'usuario' REFERENCES role_permissions(role),
+  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE TABLE refresh_tokens (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -232,21 +231,6 @@ CREATE TABLE publicaciones (
 );
 
 -- ---------------------------------------------------------------------------
--- Relación N:M -> Usuarios <-> Roles
--- ---------------------------------------------------------------------------
-CREATE TABLE roles (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        VARCHAR(50) NOT NULL UNIQUE,
-  description TEXT
-);
-
-CREATE TABLE user_roles_junction (
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-  PRIMARY KEY (user_id, role_id)
-);
-
--- ---------------------------------------------------------------------------
 -- Relación N:M -> Restaurantes <-> Amenidades (Servicios del local)
 -- ---------------------------------------------------------------------------
 CREATE TABLE amenities (
@@ -306,4 +290,3 @@ FROM waitlist_entries w
 JOIN users u ON u.id = w.user_id
 WHERE w.status IN ('waiting', 'called')
 ORDER BY w.restaurant_id, w.position;
-

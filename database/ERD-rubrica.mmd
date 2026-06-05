@@ -1,8 +1,8 @@
 erDiagram
     USERS ||--|| USER_PROFILES : "1:1"
     USERS ||--o{ PUBLICACIONES : "1:N"
-    USERS ||--o{ USER_ROLES_JUNCTION : "N:M"
-    ROLES ||--o{ USER_ROLES_JUNCTION : "N:M"
+    USERS ||--o{ RESTAURANT_STAFF : "N:M"
+    RESTAURANTS ||--o{ RESTAURANT_STAFF : "N:M"
     RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "N:M"
     AMENITIES ||--o{ RESTAURANT_AMENITIES : "N:M"
 
@@ -10,7 +10,7 @@ erDiagram
         uuid id PK
         varchar name
         varchar email UK
-        user_role role
+        user_role role FK
     }
 
     USER_PROFILES {
@@ -27,21 +27,16 @@ erDiagram
         text content
     }
 
-    ROLES {
-        uuid id PK
-        varchar name UK
-        text description
-    }
-
-    USER_ROLES_JUNCTION {
-        uuid user_id PK
-        uuid role_id PK
-    }
-
     RESTAURANTS {
         uuid id PK
         varchar name
         varchar address
+    }
+
+    RESTAURANT_STAFF {
+        uuid id PK
+        uuid restaurant_id FK
+        uuid user_id FK
     }
 
     AMENITIES {
