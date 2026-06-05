@@ -760,6 +760,34 @@ function ActiveTurnView({
   const waitTimePerPerson = Math.max(5, Math.round(baseWait / 3))
   const dynamicWaitTime = isCalled ? 0 : myEntry.position * waitTimePerPerson
 
+  // Cuenta regresiva de 5 minutos al ser llamado
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  useEffect(() => {
+    if (!isCalled || !myEntry.called_at) {
+      setTimeLeft(0)
+      return
+    }
+
+    const targetTime = new Date(myEntry.called_at).getTime() + 5 * 60 * 1000
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((targetTime - Date.now()) / 1000))
+      setTimeLeft(remaining)
+    }
+
+    updateTimer()
+    const timerId = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(timerId)
+  }, [isCalled, myEntry.called_at])
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0')
+    const s = (secs % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl">
@@ -803,7 +831,7 @@ function ActiveTurnView({
                 {dynamicWaitTime} min
               </p>
             </div>
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 text-center">
+                      <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 text-center">
               <span className="text-xs uppercase tracking-wider text-zinc-400 font-medium">Tamaño del grupo</span>
               <p className="mt-1 text-2xl font-bold text-zinc-950">
                 {myEntry.party_size} personas
@@ -817,30 +845,33 @@ function ActiveTurnView({
             </h4>
             <p className="mt-2 text-sm leading-relaxed">
               {isCalled 
-                ? 'Tu mesa está lista y te están esperando en recepción. Por favor, confirma tu llegada usando el botón de abajo.' 
+                ? 'Tu mesa está lista y te están esperando en recepción. Por favor, acude al mostrador con el personal para ingresar al local.' 
                 : 'Mantente cerca del restaurante. Te enviaremos una notificación cuando sea tu turno.'}
             </p>
-            {isCalled && (
-              <p className="mt-3 text-xs font-bold text-red-600 animate-pulse bg-red-50 border border-red-100 rounded-lg p-2 inline-block">
-                ⚠️ Tienes 5 minutos para entrar, de lo contrario tu turno se perderá.
-              </p>
+            
+            {isCalled && timeLeft > 0 && (
+              <div className="mt-4 flex flex-col items-center">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-red-50 border border-red-200 px-4 py-1.5 text-xs font-extrabold text-red-650 shadow-xs animate-pulse">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                  Tiempo restante: {formatTime(timeLeft)}
+                </div>
+              </div>
             )}
 
-            {isCalled && (
-              <button
-                className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 animate-bounce cursor-pointer"
-                onClick={confirmArrival}
-                type="button"
-              >
-                Confirmar mi llegada
-              </button>
+            {isCalled && timeLeft === 0 && (
+              <div className="mt-4 rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-bold text-red-750">
+                ⚠️ Tu tiempo de tolerancia ha expirado. Por favor dirígete de inmediato a recepción o tu turno será cancelado por el personal.
+              </div>
             )}
           </div>
 
           {/* Action cancellation */}
           <div className="pt-2 w-full">
             <button
-              className="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 hover:text-red-700"
+              className="w-full rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-sm font-semibold text-red-655 transition hover:bg-red-50 hover:text-red-700 cursor-pointer"
               onClick={cancelEntry}
               type="button"
             >

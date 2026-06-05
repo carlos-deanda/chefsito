@@ -66,6 +66,15 @@ export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
     }
   }
 
+  async function noShowGuest(entryId) {
+    try {
+      await api(`/waitlist/${entryId}/no-show`, { method: 'POST' })
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const waitTimePerPerson = restaurant ? Math.max(5, Math.round((restaurant.estimated_wait_minutes || 15) / 3)) : 0
   const dynamicWaitTime = restaurant ? (waitlist.length + 1) * waitTimePerPerson : 0
 
@@ -90,89 +99,146 @@ export default function StaffWaitlistDashboard({ user, onLogout, roleTitle }) {
               <EmptyQueueState />
             ) : (
               <div className="relative border-l-2 border-zinc-200 pl-6 ml-4 space-y-6 my-4">
-                {waitlist.map((entry) => {
-                  const isCalled = entry.status === 'called'
-                  return (
-                    <div key={entry.id} className="relative">
-                      {/* Queue timeline circle */}
-                      <span className={`absolute -left-[35px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ring-4 ring-white ${
-                        isCalled
-                          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                          : entry.position === 1
-                            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                            : 'bg-zinc-200 text-zinc-700'
-                      }`}>
-                        {entry.position}
-                      </span>
-
-                      {/* Client Card */}
-                      <div className={`rounded-2xl border bg-white p-5 shadow-xs transition hover:shadow-md ${
-                        isCalled ? 'border-emerald-200 bg-emerald-50/20' : 'border-zinc-200'
-                      }`}>
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-zinc-950 text-base">{entry.guest_name}</h4>
-                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                                isCalled 
-                                  ? 'bg-emerald-100 text-emerald-800' 
-                                  : 'bg-orange-100 text-orange-800'
-                              }`}>
-                                {isCalled ? 'Llamado' : 'En espera'}
-                              </span>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
-                              <span className="flex items-center gap-1.5">
-                                <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                                {entry.party_size} personas
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Esperando hace {entry.wait_minutes ?? '0'} min
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-                            {!isCalled && (
-                              <button
-                                className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 transition"
-                                onClick={() => callGuest(entry.id)}
-                                type="button"
-                              >
-                                Llamar
-                              </button>
-                            )}
-                            <button
-                              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition"
-                              onClick={() => arriveGuest(entry.id)}
-                              type="button"
-                            >
-                              Liberar
-                            </button>
-                            <button
-                              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition"
-                              onClick={() => removeGuest(entry.id)}
-                              type="button"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                {waitlist.map((entry) => (
+                  <WaitlistEntryRow
+                    key={entry.id}
+                    entry={entry}
+                    onCall={callGuest}
+                    onArrive={arriveGuest}
+                    onRemove={removeGuest}
+                    onNoShow={noShowGuest}
+                  />
+                ))}
               </div>
             )}
           </section>
         </>
       )}
     </AppShell>
+  )
+}
+
+function WaitlistEntryRow({ entry, onCall, onArrive, onRemove, onNoShow }) {
+  const isCalled = entry.status === 'called'
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  useEffect(() => {
+    if (!isCalled || !entry.called_at) {
+      setTimeLeft(0)
+      return
+    }
+
+    const targetTime = new Date(entry.called_at).getTime() + 5 * 60 * 1000
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((targetTime - Date.now()) / 1000))
+      setTimeLeft(remaining)
+    }
+
+    updateTimer()
+    const timerId = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(timerId)
+  }, [isCalled, entry.called_at])
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0')
+    const s = (secs % 60).toString().padStart(2, '0')
+    return `${m}:${s}`
+  }
+
+  const isExpired = isCalled && timeLeft === 0
+
+  return (
+    <div className="relative">
+      {/* Queue timeline circle */}
+      <span className={`absolute -left-[35px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ring-4 ring-white ${
+        isCalled
+          ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+          : entry.position === 1
+            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+            : 'bg-zinc-200 text-zinc-700'
+      }`}>
+        {entry.position}
+      </span>
+
+      {/* Client Card */}
+      <div className={`rounded-2xl border bg-white p-5 shadow-xs transition hover:shadow-md ${
+        isCalled ? 'border-emerald-200 bg-emerald-50/20' : 'border-zinc-200'
+      }`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h4 className="font-bold text-zinc-950 text-base">{entry.guest_name}</h4>
+              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                isCalled 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : 'bg-orange-100 text-orange-800'
+              }`}>
+                {isCalled ? 'Llamado' : 'En espera'}
+              </span>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
+              <span className="flex items-center gap-1.5">
+                <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {entry.party_size} personas
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Esperando hace {entry.wait_minutes ?? '0'} min
+              </span>
+              {isCalled && (
+                <span className={`inline-flex items-center gap-1.5 font-bold ${isExpired ? 'text-red-600 animate-pulse bg-red-50 px-2 py-0.5 rounded border border-red-200' : 'text-zinc-500'}`}>
+                  ⏳ {isExpired ? 'Tiempo Agotado' : `Tolerancia: ${formatTime(timeLeft)}`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+            {!isCalled ? (
+              <button
+                className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 transition cursor-pointer"
+                onClick={() => onCall(entry.id)}
+                type="button"
+              >
+                Llamar
+              </button>
+            ) : (
+              <button
+                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition cursor-pointer ${
+                  isExpired 
+                    ? 'bg-red-600 hover:bg-red-700 animate-pulse ring-2 ring-red-300' 
+                    : 'bg-red-500 hover:bg-red-600 shadow-sm'
+                }`}
+                onClick={() => onNoShow(entry.id)}
+                type="button"
+              >
+                {isExpired ? '⚠️ Declarar No Show' : 'No Show'}
+              </button>
+            )}
+            <button
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition cursor-pointer"
+              onClick={() => onArrive(entry.id)}
+              type="button"
+            >
+              Liberar
+            </button>
+            <button
+              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition cursor-pointer"
+              onClick={() => onRemove(entry.id)}
+              type="button"
+            >
+              Quitar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
