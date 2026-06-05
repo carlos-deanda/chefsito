@@ -4,19 +4,22 @@ erDiagram
     USERS ||--o{ PUBLICACIONES : "1:N escribe"
     USERS ||--o{ WAITLIST_ENTRIES : "1:N se une"
     USERS ||--o{ NOTIFICATIONS : "1:N recibe"
-    USERS ||--o{ USER_ROLES_JUNCTION : "1:N tiene"
-    ROLES ||--o{ USER_ROLES_JUNCTION : "1:N asociados"
+    USERS ||--o{ USER_ROLES_JUNCTION : "N:M tiene roles"
+    ROLES ||--o{ USER_ROLES_JUNCTION : "N:M asociados"
 
-    RESTAURANTS ||--o{ RESTAURANT_STAFF : "1:N personal"
+    USERS ||--o{ RESTAURANTS : "1:N gerencia (manager_id)"
     USERS ||--o{ RESTAURANT_STAFF : "1:N forma parte"
+    RESTAURANTS ||--o{ RESTAURANT_STAFF : "1:N tiene personal"
 
     RESTAURANTS ||--o{ WAITLIST_ENTRIES : "1:N fila espera"
     WAITLIST_ENTRIES ||--o{ NOTIFICATIONS : "1:N desencadena"
     RESTAURANTS ||--o{ DAILY_ANALYTICS : "1:N analitica diaria"
     RESTAURANTS ||--o{ HOURLY_ANALYTICS : "1:N analitica horaria"
 
-    RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "1:N ofrece"
-    AMENITIES ||--o{ RESTAURANT_AMENITIES : "1:N esta en"
+    RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "N:M ofrece"
+    AMENITIES ||--o{ RESTAURANT_AMENITIES : "N:M esta en"
+
+    ROLE_PERMISSIONS ||--o{ USERS : "1:N define permisos (via ENUM user_role)"
 
     USERS {
         uuid id PK
@@ -28,6 +31,16 @@ erDiagram
         boolean is_active
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    ROLE_PERMISSIONS {
+        user_role role PK
+        boolean can_manage_platform
+        boolean can_manage_restaurant
+        boolean can_manage_waitlist
+        boolean can_join_waitlist
+        boolean can_view_analytics
+        text description
     }
 
     USER_PROFILES {
