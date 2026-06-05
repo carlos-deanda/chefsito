@@ -1,0 +1,34 @@
+
+> server-chefsito@0.0.0 db:verify
+> node scripts/verify-integrity.js
+
+=== Iniciando verificación de integridad relacional ===
+
+[Paso 1] Creando usuario de prueba...
+✓ Usuario creado exitosamente. ID: 8d19e844-bd4c-4fca-87b8-d5b4aa79ccdf
+
+[Paso 2] Creando perfil de usuario (Relación 1:1)...
+✓ Perfil creado asociado al usuario 8d19e844-bd4c-4fca-87b8-d5b4aa79ccdf
+Intentando insertar un segundo perfil para el mismo usuario (debe fallar)...
+✓ OK: La base de datos impidió el duplicado correctamente. Razón: duplicate key value violates unique constraint "user_profiles_pkey"
+
+[Paso 3] Creando publicación (Relación 1:N)...
+✓ Publicación creada exitosamente. ID: 7893350f-8604-464e-a47d-f666277c9494, Título: "Título de Prueba"
+
+[Paso 4] Creando relación de amenidades (Relación N:M Restaurantes <-> Amenidades)...
+Restaurante de prueba creado ID: 0f3a8407-df40-44c0-b2f7-311a271c3d03
+Amenidad de prueba creada ID: b0f82b9f-7228-4518-8824-e29d35cb1664
+✓ Asociación N:M en restaurant_amenities realizada correctamente.
+
+[Paso 5] Verificando borrado en cascada (ON DELETE CASCADE)...
+Eliminando al usuario principal de prueba...
+✓ Usuario eliminado.
+✓ Perfil 1:1 eliminado en cascada correctamente.
+✓ Publicación 1:N eliminada en cascada correctamente.
+
+Eliminando al restaurante de prueba para verificar cascada N:M...
+✓ Asociación N:M en restaurant_amenities eliminada en cascada correctamente.
+
+======================================================
+🎉 ¡TODAS LAS PRUEBAS DE INTEGRIDAD PASARON CON ÉXITO! 🎉
+======================================================
