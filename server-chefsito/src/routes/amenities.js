@@ -46,6 +46,41 @@ router.post('/', async (req, res) => {
   }
 })
 
+// PUT/UPDATE -> Modificar amenidades
+router.put('/:id', async (req, res) => {
+  const { name, description } = req.body
+
+  if (!name?.trim()) {
+    return res.status(400).json({ message: 'El nombre de la amenidad es requerido' })
+  }
+
+  try {
+    const result = await query(
+      `UPDATE amenities
+       SET name = $1, description = $2
+       WHERE id = $3
+       RETURNING id, name, description`,
+      [name.trim(), description?.trim() || null, req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Amenidad no encontrada' })
+    }
+
+    return res.json({
+      amenity: result.rows[0],
+      message: 'Amenidad actualizada correctamente',
+    })
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ message: 'Ya existe una amenidad con este nombre' })
+    }
+
+    console.error('update amenity error', error)
+    return res.status(500).json({ message: 'Error al actualizar la amenidad' })
+  }
+})
+
 // GET /amenities/restaurants -> Obtener restaurantes con sus amenidades asignadas (N:M agregada)
 router.get('/restaurants', async (_req, res) => {
   try {
@@ -132,6 +167,30 @@ router.delete('/link', async (req, res) => {
   } catch (error) {
     console.error('unlink amenity error', error)
     return res.status(500).json({ message: 'Error al remover la amenidad' })
+  }
+})
+
+// DELETE /amenities/:id -> Eliminar una amenidad y sus vínculos N:M por cascada
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await query(
+      `DELETE FROM amenities
+       WHERE id = $1
+       RETURNING id, name`,
+      [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Amenidad no encontrada' })
+    }
+
+    return res.status(200).json({
+      amenity: result.rows[0],
+      message: 'Amenidad eliminada correctamente',
+    })
+  } catch (error) {
+    console.error('delete amenity error', error)
+    return res.status(500).json({ message: 'Error al eliminar la amenidad' })
   }
 })
 
