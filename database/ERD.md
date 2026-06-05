@@ -23,8 +23,8 @@ erDiagram
     RESTAURANTS ||--oN DAILY_ANALYTICS : "1:N (genera analítica diaria)"
     RESTAURANTS ||--oN HOURLY_ANALYTICS : "1:N (registra analítica horaria)"
     
-    ESTUDIANTES ||--oN ESTUDIANTE_CURSOS : "1:N (está inscrito)"
-    CURSOS ||--oN ESTUDIANTE_CURSOS : "1:N (contiene estudiantes)"
+    RESTAURANTS ||--oN RESTAURANT_AMENITIES : "1:N (ofrece)"
+    AMENITIES ||--oN RESTAURANT_AMENITIES : "1:N (está en)"
 
     USERS {
         uuid id PK
@@ -135,24 +135,16 @@ erDiagram
         int entries
     }
 
-    ESTUDIANTES {
+    AMENITIES {
         uuid id PK
-        varchar_120 name
-        varchar_255 email UK
-        timestamptz created_at
+        varchar_100 name UK
+        text description
     }
 
-    CURSOS {
-        uuid id PK
-        varchar_20 code UK
-        varchar_120 name
-        int credits
-    }
-
-    ESTUDIANTE_CURSOS {
-        uuid estudiante_id PK_FK
-        uuid curso_id PK_FK
-        timestamptz enrolled_at
+    RESTAURANT_AMENITIES {
+        uuid restaurant_id PK_FK
+        uuid amenity_id PK_FK
+        timestamptz linked_at
     }
 ```
 
@@ -168,5 +160,5 @@ erDiagram
 
 3. **Relaciones N:M (Muchos a Muchos)**:
    - **Usuarios <-> Roles**: Un usuario puede poseer múltiples roles y un rol puede pertenecer a múltiples usuarios. La relación se rompe mediante la tabla intermedia `user_roles_junction` mapeando `user_id` y `role_id`.
-   - **Estudiantes <-> Cursos**: Representación literal del ejemplo escolar de la rúbrica. Un estudiante se inscribe a varias materias, y un curso tiene matriculados a varios alumnos. Se rompe mediante `estudiante_cursos` mapeando las claves `estudiante_id` y `curso_id` de forma conjunta.
+   - **Restaurantes <-> Amenidades**: Relación Muchos a Muchos comercial de la aplicación. Un restaurante puede ofrecer múltiples amenidades (WiFi gratis, Estacionamiento propio, Terraza al aire libre, Pet Friendly) y cada una de ellas puede pertenecer a múltiples restaurantes. Se rompe mediante la tabla pivote `restaurant_amenities` mapeando `restaurant_id` y `amenity_id` de forma conjunta con restricción en cascada.
    - **Personal de Restaurante**: Un usuario puede formar parte del staff de diferentes locales, y un restaurante tiene asignados a múltiples empleados de mostrador. Se rompe mediante `restaurant_staff`.

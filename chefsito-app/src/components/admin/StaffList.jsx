@@ -16,7 +16,7 @@ export default function StaffList({ users, limit, onEdit, onToggleActive }) {
             onClick={() => setSelectedStaffId(selectedStaffId === u.id ? null : u.id)}
             type="button"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-50 text-sm font-bold text-violet-700">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 text-sm font-bold text-orange-800">
               {getInitials(u.name)}
             </span>
             <div className="min-w-0 flex-1">

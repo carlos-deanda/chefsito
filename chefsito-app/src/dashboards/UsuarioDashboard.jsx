@@ -387,7 +387,7 @@ export default function UsuarioDashboard({ user, onLogout }) {
               </div>
             </div>
           ) : (
-            <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+            <div className="w-full animate-fade-in">
               <section className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
                 <div className="border-b border-zinc-200 p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -504,6 +504,23 @@ export default function UsuarioDashboard({ user, onLogout }) {
                           <p className={`mt-1 text-xs ${
                             selectedRestaurant.status === 'closed' ? 'text-rose-600/70' : 'text-zinc-500'
                           }`}>{selectedRestaurant.address}</p>
+
+                          {selectedRestaurant.amenities && selectedRestaurant.amenities.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {selectedRestaurant.amenities.map((am) => (
+                                <span
+                                  key={am.id}
+                                  className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold border transition ${
+                                    selectedRestaurant.status === 'closed'
+                                      ? 'border-rose-200 bg-rose-100/10 text-rose-850'
+                                      : 'border-orange-100/60 bg-orange-50/40 text-orange-700'
+                                  }`}
+                                >
+                                  ✨ {am.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
 
                           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                             <MetricCard

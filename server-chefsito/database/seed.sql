@@ -17,9 +17,8 @@ TRUNCATE TABLE
   publicaciones,
   user_roles_junction,
   roles,
-  estudiante_cursos,
-  estudiantes,
-  cursos,
+  restaurant_amenities,
+  amenities,
   users
 RESTART IDENTITY CASCADE;
 
@@ -129,20 +128,17 @@ INSERT INTO user_roles_junction (user_id, role_id) VALUES
   ('a0000000-0000-4000-8000-000000000007', 'e0000000-0000-4000-8000-000000000002'); -- usuario
 
 -- ---------------------------------------------------------------------------
--- Relación N:M -> Demo Académica (Estudiantes <-> Cursos)
+-- Relación N:M -> Amenidades y Asignaciones
 -- ---------------------------------------------------------------------------
-INSERT INTO estudiantes (id, name, email) VALUES
-  ('f0000000-0000-4000-8000-000000000001', 'Juan Pérez', 'juan.perez@tec.mx'),
-  ('f0000000-0000-4000-8000-000000000002', 'María Gómez', 'maria.gomez@tec.mx'),
-  ('f0000000-0000-4000-8000-000000000003', 'Pedro Rodríguez', 'pedro.rod@tec.mx');
+INSERT INTO amenities (id, name, description) VALUES
+  ('90000000-0000-4000-8000-000000000001', 'WiFi gratis', 'Conexión inalámbrica a internet de alta velocidad.'),
+  ('90000000-0000-4000-8000-000000000002', 'Terraza al aire libre', 'Área de mesas exteriores para disfrutar del clima.'),
+  ('90000000-0000-4000-8000-000000000003', 'Estacionamiento propio', 'Cajones de estacionamiento exclusivos para clientes.'),
+  ('90000000-0000-4000-8000-000000000004', 'Pet Friendly', 'Se permite el acceso a mascotas domesticadas en áreas designadas.');
 
-INSERT INTO cursos (id, code, name, credits) VALUES
-  ('90000000-0000-4000-8000-000000000001', 'TC2007B', 'Construcción de Software', 5),
-  ('90000000-0000-4000-8000-000000000002', 'TC3002B', 'Bases de Datos Avanzadas', 4),
-  ('90000000-0000-4000-8000-000000000003', 'TC2008B', 'Desarrollo de Aplicaciones Web', 3);
-
-INSERT INTO estudiante_cursos (estudiante_id, curso_id) VALUES
-  ('f0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000001'),
-  ('f0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000002'),
-  ('f0000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001'),
-  ('f0000000-0000-4000-8000-000000000003', '90000000-0000-4000-8000-000000000003');
+INSERT INTO restaurant_amenities (restaurant_id, amenity_id) VALUES
+  ('b0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000001'), -- Chilaquiles -> WiFi
+  ('b0000000-0000-4000-8000-000000000001', '90000000-0000-4000-8000-000000000002'), -- Chilaquiles -> Terraza
+  ('b0000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000001'), -- Burritos -> WiFi
+  ('b0000000-0000-4000-8000-000000000002', '90000000-0000-4000-8000-000000000003'), -- Burritos -> Estacionamiento
+  ('b0000000-0000-4000-8000-000000000003', '90000000-0000-4000-8000-000000000004'); -- Sushi -> Pet Friendly

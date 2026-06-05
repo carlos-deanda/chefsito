@@ -51,10 +51,10 @@ export default function SoporteDashboard({ user, onLogout }) {
       )}
 
       {/* Banner de Bienvenida y Status del Sistema */}
-      <section className="mb-6 overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-r from-violet-950 via-indigo-900 to-zinc-900 p-6 text-white shadow-lg">
+      <section className="mb-6 overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-r from-zinc-950 via-zinc-900 to-zinc-800 p-6 text-white shadow-lg">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Consola del Operador</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-300">Consola del Operador</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight">Centro de Soporte Chefsito</h2>
             <p className="mt-2 text-sm text-zinc-300">
               Monitoreo y auditoría de la plataforma. Solo lectura para soporte y asistencia global.
@@ -82,7 +82,7 @@ export default function SoporteDashboard({ user, onLogout }) {
             <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-zinc-900 flex items-center gap-2">
-                  <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                   Restaurantes afiliados
@@ -120,12 +120,12 @@ export default function SoporteDashboard({ user, onLogout }) {
             <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-zinc-900 flex items-center gap-2">
-                  <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                   Monitoreo de filas
                 </h3>
-                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-700">
                   {data.active_waitlist.length} activos
                 </span>
               </div>
@@ -160,7 +160,7 @@ export default function SoporteDashboard({ user, onLogout }) {
             <div className="border-b border-zinc-100 bg-zinc-50/50 px-5 py-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-zinc-900 flex items-center gap-2">
-                  <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-5 w-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                   Bitácora de notificaciones
@@ -178,9 +178,9 @@ export default function SoporteDashboard({ user, onLogout }) {
                 data.recent_notifications.map((n) => {
                   const channelColors = {
                     whatsapp: 'bg-emerald-50 text-emerald-800 border-emerald-100',
-                    sms: 'bg-indigo-50 text-indigo-800 border-indigo-100',
-                    push: 'bg-amber-50 text-amber-800 border-amber-100',
-                    email: 'bg-violet-50 text-violet-800 border-violet-100',
+                    sms: 'bg-sky-50 text-sky-800 border-sky-100',
+                    push: 'bg-orange-50 text-orange-850 border-orange-100',
+                    email: 'bg-zinc-100 text-zinc-700 border-zinc-200',
                   }
                   const channelLabel = {
                     whatsapp: 'WhatsApp',

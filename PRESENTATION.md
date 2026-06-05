@@ -46,7 +46,7 @@ Esta guía estructurada cubre todos los requerimientos solicitados para la **Pre
   - **1:N (Usuario -> Publicaciones)**: Los gerentes y administradores publican anuncios o novedades de los locales (`publicaciones`). Cada anuncio pertenece a un solo usuario creador.
   - **N:M (Muchos a Muchos)**:
     - *Comercial*: `restaurant_staff` que vincula recepcionistas y gerentes con múltiples sucursales de restaurantes.
-    - *Académico (Rúbrica)*: `estudiante_cursos` que asocia alumnos (`estudiantes`) inscritos en múltiples materias (`cursos`).
+    - *Funcional (Rúbrica)*: `restaurant_amenities` que asocia restaurantes (`restaurants`) con múltiples servicios y amenidades (`amenities`).
 - **Garantías de Integridad**:
   - Integridad referencial mediante restricciones `FOREIGN KEY`.
   - Propagación y limpieza automática de datos huérfanos usando cláusulas `ON DELETE CASCADE`.
@@ -61,9 +61,9 @@ Esta guía estructurada cubre todos los requerimientos solicitados para la **Pre
 - **Decisión 2: Soft Delete vs Hard Delete**:
   - *Reto*: Eliminar personal o cuentas de usuario directamente rompe la integridad histórica de las analíticas de turnos atendidos.
   - *Solución*: Implementar baja lógica (`is_active = FALSE`) en la tabla de usuarios, inhabilitando accesos pero resguardando los reportes históricos.
-- **Decisión 3: Demo Académica Integrada**:
-  - *Reto*: Cumplir con la visualización de datos ajenos al giro comercial del restaurante de forma natural.
-  - *Solución*: Crear un portal de demostración aislado dentro de la consola del administrador para mostrar visualmente el CRUD N:M escolar sin interferir con la experiencia del cliente de restaurantes.
+- **Decisión 3: Demo de Amenidades Integrada**:
+  - *Reto*: Cumplir con la visualización Muchos a Muchos (N:M) de forma natural y adaptada al giro de negocio.
+  - *Solución*: Crear un portal de gestión de amenidades de restaurantes dentro de la consola del administrador para asociar servicios (WiFi, Terraza, Estacionamiento) a cada local.
 
 ---
 
@@ -88,8 +88,8 @@ Esta guía estructurada cubre todos los requerimientos solicitados para la **Pre
    - Inicia sesión como administrador (`admin@chefsito.mx`).
    - Ve a la pestaña **Restaurantes**: edita los datos de un local existente o elimina uno de prueba para demostrar el borrado en cascada física.
    - Ve a la pestaña **Staff**: edita el rol de un recepcionista o dale de baja ("Dar de baja" lógico).
-5. **Flujo 5: Demostración Académica N:M (Inscripciones)**:
-   - En la consola de administración, haz clic en la pestaña **Demo N:M Académica**.
-   - Registra un nuevo curso (ej. Materia de Bases de Datos) y un nuevo estudiante.
-   - Utiliza el formulario de unión para inscribir al estudiante al curso recién creado.
-   - Visualiza al estudiante con su insignia del curso en la lista, y luego haz clic en la `❌` para dar de baja la inscripción y demostrar la remoción física de la tabla de unión.
+5. **Flujo 5: Demostración N:M de Amenidades**:
+   - En la consola de administración, haz clic en la pestaña **Amenidades N:M**.
+   - Registra una nueva amenidad (ej. Música en vivo).
+   - Utiliza el formulario de unión para vincular la amenidad a uno de los restaurantes de la lista.
+   - Visualiza al restaurante con su insignia de amenidad recién vinculada, y luego haz clic en la `❌` para remover la amenidad y demostrar la remoción física en la tabla de unión.

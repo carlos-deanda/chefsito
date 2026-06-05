@@ -58,40 +58,40 @@ async function runTests() {
     const postId = postRes.rows[0].id
     console.log(`✓ Publicación creada exitosamente. ID: ${postId}, Título: "${postRes.rows[0].title}"`)
 
-    // 4. Crear demostración de estudiantes e inscripciones (Verificación Relación N:M)
-    console.log('\n[Paso 4] Creando matrícula escolar (Relación N:M Estudiantes <-> Cursos)...');
+    // 4. Crear demostración de amenidades y asignaciones (Verificación Relación N:M)
+    console.log('\n[Paso 4] Creando relación de amenidades (Relación N:M Restaurantes <-> Amenidades)...');
     
-    const studentRes = await client.query(
-      `INSERT INTO estudiantes (name, email)
-       VALUES ('Estudiante Integridad', 'estudiante.test@tec.mx')
+    const restTestRes = await client.query(
+      `INSERT INTO restaurants (name, cuisine, address, lat, lng, table_count)
+       VALUES ('Restaurante Test Integridad', 'Prueba', 'Calle Falsa 123', 20.73, -103.45, 10)
        RETURNING id`
     )
-    const studentId = studentRes.rows[0].id
+    const restTestId = restTestRes.rows[0].id
     
-    const courseRes = await client.query(
-      `INSERT INTO cursos (code, name, credits)
-       VALUES ('TEST999', 'Materia de Integridad', 4)
+    const amenityRes = await client.query(
+      `INSERT INTO amenities (name, description)
+       VALUES ('Amenidad Test Integridad', 'Servicio de prueba de base de datos')
        RETURNING id`
     )
-    const courseId = courseRes.rows[0].id
-
-    console.log(`Estudiante creado ID: ${studentId}`)
-    console.log(`Curso creado ID: ${courseId}`)
-
-    // Inscribir en la tabla de unión
+    const amenityId = amenityRes.rows[0].id
+ 
+    console.log(`Restaurante de prueba creado ID: ${restTestId}`)
+    console.log(`Amenidad de prueba creada ID: ${amenityId}`)
+ 
+    // Asociar en la tabla de unión
     await client.query(
-      `INSERT INTO estudiante_cursos (estudiante_id, curso_id) VALUES ($1, $2)`,
-      [studentId, courseId]
+      `INSERT INTO restaurant_amenities (restaurant_id, amenity_id) VALUES ($1, $2)`,
+      [restTestId, amenityId]
     )
-    console.log('✓ Inscripción N:M realizada correctamente.')
-
+    console.log('✓ Asociación N:M en restaurant_amenities realizada correctamente.')
+ 
     // 5. Verificar borrado en cascada (Cascade Deletes)
     console.log('\n[Paso 5] Verificando borrado en cascada (ON DELETE CASCADE)...');
     
     console.log('Eliminando al usuario principal de prueba...');
     await client.query(`DELETE FROM users WHERE id = $1`, [userId])
     console.log('✓ Usuario eliminado.')
-
+ 
     // Verificar si el perfil fue eliminado en cascada
     const checkProfile = await client.query(`SELECT * FROM user_profiles WHERE user_id = $1`, [userId])
     if (checkProfile.rowCount === 0) {
@@ -100,7 +100,7 @@ async function runTests() {
       console.error('❌ ERROR: El perfil 1:1 no fue eliminado en cascada.')
       process.exit(1)
     }
-
+ 
     // Verificar si la publicación fue eliminada en cascada
     const checkPost = await client.query(`SELECT * FROM publicaciones WHERE id = $1`, [postId])
     if (checkPost.rowCount === 0) {
@@ -109,25 +109,25 @@ async function runTests() {
       console.error('❌ ERROR: La publicación 1:N no fue eliminada en cascada.')
       process.exit(1)
     }
-
-    console.log('\nEliminando al estudiante de prueba N:M...');
-    await client.query(`DELETE FROM estudiantes WHERE id = $1`, [studentId])
+ 
+    console.log('\nEliminando al restaurante de prueba para verificar cascada N:M...');
+    await client.query(`DELETE FROM restaurants WHERE id = $1`, [restTestId])
     
-    // Verificar si la inscripción fue eliminada en cascada
-    const checkEnroll = await client.query(
-      `SELECT * FROM estudiante_cursos WHERE estudiante_id = $1 AND curso_id = $2`,
-      [studentId, courseId]
+    // Verificar si la asociación fue eliminada en cascada
+    const checkLink = await client.query(
+      `SELECT * FROM restaurant_amenities WHERE restaurant_id = $1 AND amenity_id = $2`,
+      [restTestId, amenityId]
     )
-    if (checkEnroll.rowCount === 0) {
-      console.log('✓ Inscripción N:M eliminada en cascada correctamente.')
+    if (checkLink.rowCount === 0) {
+      console.log('✓ Asociación N:M en restaurant_amenities eliminada en cascada correctamente.')
     } else {
-      console.error('❌ ERROR: La inscripción N:M no fue eliminada en cascada.')
+      console.error('❌ ERROR: La asociación N:M no fue eliminada en cascada.')
       process.exit(1)
     }
-
-    // Limpiar el curso de prueba
-    await client.query(`DELETE FROM cursos WHERE id = $1`, [courseId])
-
+ 
+    // Limpiar la amenidad de prueba
+    await client.query(`DELETE FROM amenities WHERE id = $1`, [amenityId])
+ 
     console.log('\n======================================================');
     console.log('🎉 ¡TODAS LAS PRUEBAS DE INTEGRIDAD PASARON CON ÉXITO! 🎉');
     console.log('======================================================');
