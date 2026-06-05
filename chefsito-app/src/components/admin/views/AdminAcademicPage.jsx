@@ -12,11 +12,10 @@ export default function AdminAcademicPage() {
   // Form states
   const [newAmenity, setNewAmenity] = useState({ name: '', description: '' })
   const [linkForm, setLinkForm] = useState({ restaurant_id: '', amenity_id: '' })
+  const [editingAmenity, setEditingAmenity] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   const fetchData = async () => {
-    setLoading(true)
-    setError('')
     try {
       const [amRes, restRes] = await Promise.all([
         api('/amenities'),
@@ -24,6 +23,7 @@ export default function AdminAcademicPage() {
       ])
       setAmenities(amRes.amenities || [])
       setRestaurants(restRes.restaurants || [])
+      setError('')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -32,7 +32,11 @@ export default function AdminAcademicPage() {
   }
 
   useEffect(() => {
-    fetchData()
+    const timerId = window.setTimeout(() => {
+      fetchData()
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
   }, [])
 
   const handleCreateAmenity = async (e) => {
@@ -71,6 +75,55 @@ export default function AdminAcademicPage() {
       })
       setSuccess(res.message || 'Amenidad vinculada al restaurante con éxito.')
       setLinkForm({ restaurant_id: '', amenity_id: '' })
+      await fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditAmenity = async (e) => {
+    e.preventDefault()
+    if (!editingAmenity?.name.trim()) return
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await api(`/amenities/${editingAmenity.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editingAmenity.name,
+          description: editingAmenity.description,
+        }),
+      })
+      setSuccess(res.message || 'Amenidad actualizada correctamente.')
+      setEditingAmenity(null)
+      await fetchData()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteAmenity = async (amenity) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar la amenidad "${amenity.name}"? También se removerá de los restaurantes vinculados.`)) return
+
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await api(`/amenities/${amenity.id}`, { method: 'DELETE' })
+      setSuccess(res?.message || 'Amenidad eliminada correctamente.')
+      if (editingAmenity?.id === amenity.id) {
+        setEditingAmenity(null)
+      }
+      setLinkForm((current) => (
+        current.amenity_id === amenity.id ? { ...current, amenity_id: '' } : current
+      ))
       await fetchData()
     } catch (err) {
       setError(err.message)
@@ -156,6 +209,54 @@ export default function AdminAcademicPage() {
             </form>
           </section>
 
+          {/* Editar Amenidad */}
+          {editingAmenity && (
+            <section className="rounded-2xl border border-orange-200 bg-orange-50/40 p-6 shadow-sm">
+              <h3 className="mb-4 border-b border-orange-100 pb-3 text-base font-bold text-zinc-950">
+                Editar Amenidad
+              </h3>
+              <form onSubmit={handleEditAmenity} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Nombre de la Amenidad</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full rounded-xl border border-orange-200 bg-white px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    value={editingAmenity.name}
+                    onChange={(e) => setEditingAmenity({ ...editingAmenity, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Descripción (Opcional)</label>
+                  <textarea
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-orange-200 bg-white px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
+                    value={editingAmenity.description || ''}
+                    onChange={(e) => setEditingAmenity({ ...editingAmenity, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="rounded-xl bg-[#f15a24] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#e04f1c] hover:shadow-md disabled:opacity-50"
+                  >
+                    Guardar Cambios
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-650 transition hover:bg-zinc-50"
+                    onClick={() => setEditingAmenity(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+
           {/* Asociar Amenidad a Restaurante */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
@@ -214,8 +315,37 @@ export default function AdminAcademicPage() {
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {amenities.map((am) => (
                 <div key={am.id} className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3">
-                  <h4 className="font-bold text-zinc-950 text-sm">{am.name}</h4>
-                  {am.description && <p className="text-xs text-zinc-500 mt-1">{am.description}</p>}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-zinc-950">{am.name}</h4>
+                      {am.description && <p className="mt-1 text-xs text-zinc-500">{am.description}</p>}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-650 transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+                        onClick={() => {
+                          setEditingAmenity({
+                            id: am.id,
+                            name: am.name,
+                            description: am.description || '',
+                          })
+                          setError('')
+                          setSuccess('')
+                        }}
+                        type="button"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-semibold text-red-650 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                        disabled={submitting}
+                        onClick={() => handleDeleteAmenity(am)}
+                        type="button"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
               {amenities.length === 0 && (
