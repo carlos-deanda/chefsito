@@ -1,37 +1,22 @@
 erDiagram
+    ROLE_PERMISSIONS ||--o{ USERS : "1:N autoriza rol"
+
     USERS ||--|| USER_PROFILES : "1:1 tiene perfil"
     USERS ||--o{ REFRESH_TOKENS : "1:N posee tokens"
     USERS ||--o{ PUBLICACIONES : "1:N escribe"
-    USERS ||--o{ WAITLIST_ENTRIES : "1:N se une"
+    USERS |o--o{ RESTAURANTS : "0..1:N gerencia"
+    USERS ||--o{ RESTAURANT_STAFF : "N:M trabaja en"
+    USERS ||--o{ WAITLIST_ENTRIES : "1:N solicita turno"
     USERS ||--o{ NOTIFICATIONS : "1:N recibe"
-    USERS ||--o{ USER_ROLES_JUNCTION : "N:M tiene roles"
-    ROLES ||--o{ USER_ROLES_JUNCTION : "N:M asociados"
 
-    USERS ||--o{ RESTAURANTS : "1:N gerencia (manager_id)"
-    USERS ||--o{ RESTAURANT_STAFF : "1:N forma parte"
-    RESTAURANTS ||--o{ RESTAURANT_STAFF : "1:N tiene personal"
-
-    RESTAURANTS ||--o{ WAITLIST_ENTRIES : "1:N fila espera"
-    WAITLIST_ENTRIES ||--o{ NOTIFICATIONS : "1:N desencadena"
+    RESTAURANTS ||--o{ RESTAURANT_STAFF : "N:M tiene personal"
+    RESTAURANTS ||--o{ WAITLIST_ENTRIES : "1:N tiene fila"
     RESTAURANTS ||--o{ DAILY_ANALYTICS : "1:N analitica diaria"
     RESTAURANTS ||--o{ HOURLY_ANALYTICS : "1:N analitica horaria"
-
     RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "N:M ofrece"
+
+    WAITLIST_ENTRIES |o--o{ NOTIFICATIONS : "0..1:N desencadena"
     AMENITIES ||--o{ RESTAURANT_AMENITIES : "N:M esta en"
-
-    ROLE_PERMISSIONS ||--o{ USERS : "1:N define permisos (via ENUM user_role)"
-
-    USERS {
-        uuid id PK
-        varchar name
-        varchar email UK
-        varchar phone
-        varchar password_hash
-        user_role role
-        boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
-    }
 
     ROLE_PERMISSIONS {
         user_role role PK
@@ -43,31 +28,24 @@ erDiagram
         text description
     }
 
+    USERS {
+        uuid id PK
+        varchar name
+        varchar email UK
+        varchar phone
+        varchar password_hash
+        user_role role FK
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     USER_PROFILES {
         uuid user_id PK
         text bio
         varchar avatar_url
         jsonb preferences
         timestamptz updated_at
-    }
-
-    PUBLICACIONES {
-        uuid id PK
-        uuid user_id FK
-        varchar title
-        text content
-        timestamptz created_at
-    }
-
-    ROLES {
-        uuid id PK
-        varchar name UK
-        text description
-    }
-
-    USER_ROLES_JUNCTION {
-        uuid user_id PK
-        uuid role_id PK
     }
 
     REFRESH_TOKENS {
@@ -139,6 +117,14 @@ erDiagram
         date report_date
         smallint hour
         int entries
+    }
+
+    PUBLICACIONES {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text content
+        timestamptz created_at
     }
 
     AMENITIES {
