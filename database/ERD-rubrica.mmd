@@ -1,0 +1,57 @@
+erDiagram
+    USERS ||--|| USER_PROFILES : "1:1"
+    USERS ||--o{ PUBLICACIONES : "1:N"
+    USERS ||--o{ USER_ROLES_JUNCTION : "N:M"
+    ROLES ||--o{ USER_ROLES_JUNCTION : "N:M"
+    RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "N:M"
+    AMENITIES ||--o{ RESTAURANT_AMENITIES : "N:M"
+
+    USERS {
+        uuid id PK
+        varchar name
+        varchar email UK
+        user_role role
+    }
+
+    USER_PROFILES {
+        uuid user_id PK
+        text bio
+        varchar avatar_url
+        jsonb preferences
+    }
+
+    PUBLICACIONES {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text content
+    }
+
+    ROLES {
+        uuid id PK
+        varchar name UK
+        text description
+    }
+
+    USER_ROLES_JUNCTION {
+        uuid user_id PK
+        uuid role_id PK
+    }
+
+    RESTAURANTS {
+        uuid id PK
+        varchar name
+        varchar address
+    }
+
+    AMENITIES {
+        uuid id PK
+        varchar name UK
+        text description
+    }
+
+    RESTAURANT_AMENITIES {
+        uuid restaurant_id PK
+        uuid amenity_id PK
+        timestamptz linked_at
+    }

@@ -1,0 +1,141 @@
+erDiagram
+    USERS ||--|| USER_PROFILES : "1:1 tiene perfil"
+    USERS ||--o{ REFRESH_TOKENS : "1:N posee tokens"
+    USERS ||--o{ PUBLICACIONES : "1:N escribe"
+    USERS ||--o{ WAITLIST_ENTRIES : "1:N se une"
+    USERS ||--o{ NOTIFICATIONS : "1:N recibe"
+    USERS ||--o{ USER_ROLES_JUNCTION : "1:N tiene"
+    ROLES ||--o{ USER_ROLES_JUNCTION : "1:N asociados"
+
+    RESTAURANTS ||--o{ RESTAURANT_STAFF : "1:N personal"
+    USERS ||--o{ RESTAURANT_STAFF : "1:N forma parte"
+
+    RESTAURANTS ||--o{ WAITLIST_ENTRIES : "1:N fila espera"
+    WAITLIST_ENTRIES ||--o{ NOTIFICATIONS : "1:N desencadena"
+    RESTAURANTS ||--o{ DAILY_ANALYTICS : "1:N analitica diaria"
+    RESTAURANTS ||--o{ HOURLY_ANALYTICS : "1:N analitica horaria"
+
+    RESTAURANTS ||--o{ RESTAURANT_AMENITIES : "1:N ofrece"
+    AMENITIES ||--o{ RESTAURANT_AMENITIES : "1:N esta en"
+
+    USERS {
+        uuid id PK
+        varchar name
+        varchar email UK
+        varchar phone
+        varchar password_hash
+        user_role role
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    USER_PROFILES {
+        uuid user_id PK
+        text bio
+        varchar avatar_url
+        jsonb preferences
+        timestamptz updated_at
+    }
+
+    PUBLICACIONES {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text content
+        timestamptz created_at
+    }
+
+    ROLES {
+        uuid id PK
+        varchar name UK
+        text description
+    }
+
+    USER_ROLES_JUNCTION {
+        uuid user_id PK
+        uuid role_id PK
+    }
+
+    REFRESH_TOKENS {
+        uuid id PK
+        uuid user_id FK
+        varchar token_hash
+        timestamptz expires_at
+        timestamptz created_at
+    }
+
+    RESTAURANTS {
+        uuid id PK
+        varchar name
+        varchar cuisine
+        varchar address
+        numeric lat
+        numeric lng
+        int table_count
+        restaurant_status status
+        int estimated_wait_minutes
+        uuid manager_id FK
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    RESTAURANT_STAFF {
+        uuid id PK
+        uuid restaurant_id FK
+        uuid user_id FK
+        timestamptz assigned_at
+    }
+
+    WAITLIST_ENTRIES {
+        uuid id PK
+        uuid restaurant_id FK
+        uuid user_id FK
+        int party_size
+        waitlist_status status
+        int position
+        timestamptz registered_at
+        timestamptz called_at
+        timestamptz arrived_at
+        timestamptz cancelled_at
+    }
+
+    NOTIFICATIONS {
+        uuid id PK
+        uuid waitlist_entry_id FK
+        uuid user_id FK
+        varchar channel
+        text message
+        varchar status
+        timestamptz sent_at
+    }
+
+    DAILY_ANALYTICS {
+        uuid id PK
+        uuid restaurant_id FK
+        date report_date
+        int total_entries
+        int no_shows
+        int avg_wait_minutes
+        smallint peak_hour
+    }
+
+    HOURLY_ANALYTICS {
+        uuid id PK
+        uuid restaurant_id FK
+        date report_date
+        smallint hour
+        int entries
+    }
+
+    AMENITIES {
+        uuid id PK
+        varchar name UK
+        text description
+    }
+
+    RESTAURANT_AMENITIES {
+        uuid restaurant_id PK
+        uuid amenity_id PK
+        timestamptz linked_at
+    }
