@@ -16,7 +16,7 @@ const navItems = [
   { id: 'staff', label: 'Staff', Icon: IconStaff },
   { id: 'analytics', label: 'Analytics', Icon: IconAnalytics },
   { id: 'anuncios', label: 'Anuncios (1:N)', Icon: IconBell },
-  { id: 'academic', label: 'Demo N:M Académica', Icon: IconSupport },
+  { id: 'academic', label: 'Amenidades N:M', Icon: IconSupport },
 ]
 
 export default function AdminLayout({
@@ -44,7 +44,7 @@ export default function AdminLayout({
                 key={id}
                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-violet-50 text-violet-900'
+                    ? 'bg-orange-50 text-orange-950'
                     : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
                 }`}
                 onClick={() => onNavigate(id)}

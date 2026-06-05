@@ -71,9 +71,9 @@ export default function AdminAnalyticsPage({ overview, restaurantStats }) {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-violet-950 px-6 py-8 text-white shadow-lg sm:px-8">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-950 px-6 py-8 text-white shadow-lg sm:px-8">
         <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-orange-500/20 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-10 left-1/3 h-32 w-32 rounded-full bg-violet-500/30 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-10 left-1/3 h-32 w-32 rounded-full bg-orange-500/10 blur-2xl" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-orange-200">
@@ -110,7 +110,7 @@ export default function AdminAnalyticsPage({ overview, restaurantStats }) {
           value={network.noShows}
         />
         <KpiTile
-          accent="violet"
+          accent="orange"
           label="Espera promedio"
           sub="Promedio entre sucursales"
           value={`${network.avgWait} min`}
@@ -168,7 +168,7 @@ export default function AdminAnalyticsPage({ overview, restaurantStats }) {
 
       {restaurantStats.length > 0 && (
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-zinc-100 bg-gradient-to-r from-violet-50/80 to-orange-50/50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-zinc-100 bg-gradient-to-r from-zinc-50 to-orange-50/50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-semibold text-zinc-950">Detalle por restaurante</h3>
               <p className="text-sm text-zinc-500">Flujo por hora y métricas del día</p>
@@ -205,8 +205,8 @@ export default function AdminAnalyticsPage({ overview, restaurantStats }) {
                       {
                         label: 'Espera prom.',
                         value: `${selected.stats.avg_wait_minutes} min`,
-                        valueClass: 'text-violet-600',
-                        boxClass: 'bg-violet-50',
+                        valueClass: 'text-orange-650',
+                        boxClass: 'bg-orange-50/70',
                       },
                       {
                         label: 'Hora pico',
@@ -224,7 +224,7 @@ export default function AdminAnalyticsPage({ overview, restaurantStats }) {
 
                   <div className="mt-8 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5">
                     <div className="mb-4 flex items-center gap-2">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
                         <IconQueue className="h-5 w-5" />
                       </span>
                       <div>

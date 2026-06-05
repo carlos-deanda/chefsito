@@ -12,7 +12,7 @@ import soporteRoutes from './routes/soporte.js'
 import analyticsRoutes from './routes/analytics.js'
 import profileRoutes from './routes/profiles.js'
 import publicacionRoutes from './routes/publicaciones.js'
-import academicRoutes from './routes/academic.js'
+import amenitiesRoutes from './routes/amenities.js'
 
 const app = express()
 const server = createServer(app)
@@ -72,7 +72,7 @@ app.use('/soporte', soporteRoutes)
 app.use('/analytics', analyticsRoutes)
 app.use('/profiles', profileRoutes)
 app.use('/publicaciones', publicacionRoutes)
-app.use('/academic', academicRoutes)
+app.use('/amenities', amenitiesRoutes)
 
 io.on('connection', (socket) => {
   socket.on('restaurant:join', (restaurantId) => {

@@ -3,28 +3,27 @@ import { api } from '../../../api/client.js'
 import PageHeader from '../PageHeader.jsx'
 
 export default function AdminAcademicPage() {
-  const [cursos, setCursos] = useState([])
-  const [estudiantes, setEstudiantes] = useState([])
+  const [amenities, setAmenities] = useState([])
+  const [restaurants, setRestaurants] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   // Form states
-  const [newCurso, setNewCurso] = useState({ code: '', name: '', credits: 3 })
-  const [newEstudiante, setNewEstudiante] = useState({ name: '', email: '' })
-  const [enrollment, setEnrollment] = useState({ estudiante_id: '', curso_id: '' })
+  const [newAmenity, setNewAmenity] = useState({ name: '', description: '' })
+  const [linkForm, setLinkForm] = useState({ restaurant_id: '', amenity_id: '' })
   const [submitting, setSubmitting] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
     setError('')
     try {
-      const [curRes, estRes] = await Promise.all([
-        api('/academic/cursos'),
-        api('/academic/estudiantes'),
+      const [amRes, restRes] = await Promise.all([
+        api('/amenities'),
+        api('/amenities/restaurants'),
       ])
-      setCursos(curRes.cursos || [])
-      setEstudiantes(estRes.estudiantes || [])
+      setAmenities(amRes.amenities || [])
+      setRestaurants(restRes.restaurants || [])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -36,20 +35,20 @@ export default function AdminAcademicPage() {
     fetchData()
   }, [])
 
-  const handleCreateCurso = async (e) => {
+  const handleCreateAmenity = async (e) => {
     e.preventDefault()
-    if (!newCurso.code.trim() || !newCurso.name.trim()) return
+    if (!newAmenity.name.trim()) return
     setSubmitting(true)
     setError('')
     setSuccess('')
 
     try {
-      const res = await api('/academic/cursos', {
+      const res = await api('/amenities', {
         method: 'POST',
-        body: JSON.stringify(newCurso),
+        body: JSON.stringify(newAmenity),
       })
-      setSuccess(res.message || 'Curso registrado correctamente.')
-      setNewCurso({ code: '', name: '', credits: 3 })
+      setSuccess(res.message || 'Amenidad registrada correctamente.')
+      setNewAmenity({ name: '', description: '' })
       await fetchData()
     } catch (err) {
       setError(err.message)
@@ -58,20 +57,20 @@ export default function AdminAcademicPage() {
     }
   }
 
-  const handleCreateEstudiante = async (e) => {
+  const handleLink = async (e) => {
     e.preventDefault()
-    if (!newEstudiante.name.trim() || !newEstudiante.email.trim()) return
+    if (!linkForm.restaurant_id || !linkForm.amenity_id) return
     setSubmitting(true)
     setError('')
     setSuccess('')
 
     try {
-      const res = await api('/academic/estudiantes', {
+      const res = await api('/amenities/link', {
         method: 'POST',
-        body: JSON.stringify(newEstudiante),
+        body: JSON.stringify(linkForm),
       })
-      setSuccess(res.message || 'Estudiante registrado correctamente.')
-      setNewEstudiante({ name: '', email: '' })
+      setSuccess(res.message || 'Amenidad vinculada al restaurante con éxito.')
+      setLinkForm({ restaurant_id: '', amenity_id: '' })
       await fetchData()
     } catch (err) {
       setError(err.message)
@@ -80,48 +79,26 @@ export default function AdminAcademicPage() {
     }
   }
 
-  const handleEnroll = async (e) => {
-    e.preventDefault()
-    if (!enrollment.estudiante_id || !enrollment.curso_id) return
-    setSubmitting(true)
-    setError('')
-    setSuccess('')
+  const handleUnlink = async (restaurantId, amenityId) => {
+    if (!window.confirm('¿Seguro que deseas remover esta amenidad de este restaurante?')) return
 
     try {
-      const res = await api('/academic/enroll', {
-        method: 'POST',
-        body: JSON.stringify(enrollment),
-      })
-      setSuccess(res.message || 'Estudiante inscrito al curso exitosamente.')
-      setEnrollment({ estudiante_id: '', curso_id: '' })
-      await fetchData()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleUnenroll = async (estudianteId, cursoId) => {
-    if (!window.confirm('¿Seguro que deseas dar de baja esta inscripción?')) return
-
-    try {
-      const res = await api('/academic/enroll', {
+      const res = await api('/amenities/link', {
         method: 'DELETE',
-        body: JSON.stringify({ estudiante_id: estudianteId, curso_id: cursoId }),
+        body: JSON.stringify({ restaurant_id: restaurantId, amenity_id: amenityId }),
       })
-      alert(res?.message || 'Baja realizada.')
+      alert(res?.message || 'Amenidad removida.')
       await fetchData()
     } catch (err) {
-      alert(`Error al dar de baja: ${err.message}`)
+      alert(`Error al remover amenidad: ${err.message}`)
     }
   }
 
   return (
     <>
       <PageHeader
-        description="Panel de prueba académica para evidenciar e interactuar con la relación de muchos a muchos (N:M) entre estudiantes y cursos."
-        title="Demostración N:M Académica"
+        description="Gestión integral de amenidades y servicios especiales de los locales. Evidencia visual de la relación Muchos a Muchos (N:M) entre restaurantes y amenidades."
+        title="Amenidades de Restaurantes (N:M)"
       />
 
       {error && (
@@ -135,209 +112,151 @@ export default function AdminAcademicPage() {
         </p>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Registro de Cursos */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
-            📘 Registrar Curso
-          </h3>
-          <form onSubmit={handleCreateCurso} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Clave del Curso</label>
-              <input
-                type="text"
-                placeholder="Ej. TC2007B"
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={newCurso.code}
-                onChange={(e) => setNewCurso({ ...newCurso, code: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Nombre de Materia</label>
-              <input
-                type="text"
-                placeholder="Ej. Construcción de Software"
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={newCurso.name}
-                onChange={(e) => setNewCurso({ ...newCurso, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Créditos</label>
-              <input
-                type="number"
-                min="1"
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={newCurso.credits}
-                onChange={(e) => setNewCurso({ ...newCurso, credits: e.target.value })}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-xl bg-violet-700 hover:bg-violet-850 py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
-            >
-              Registrar Curso
-            </button>
-          </form>
-        </section>
-
-        {/* Registro de Estudiantes */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
-            👨‍🎓 Registrar Estudiante
-          </h3>
-          <form onSubmit={handleCreateEstudiante} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Nombre Completo</label>
-              <input
-                type="text"
-                placeholder="Ej. Juan Pérez"
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={newEstudiante.name}
-                onChange={(e) => setNewEstudiante({ ...newEstudiante, name: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Correo Electrónico</label>
-              <input
-                type="email"
-                placeholder="Ej. juan@tec.mx"
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={newEstudiante.email}
-                onChange={(e) => setNewEstudiante({ ...newEstudiante, email: e.target.value })}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-xl bg-violet-700 hover:bg-violet-850 py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
-            >
-              Registrar Estudiante
-            </button>
-          </form>
-        </section>
-
-        {/* Inscripción (Relación de Unión N:M) */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
-            🔗 Inscribir (Unión N:M)
-          </h3>
-          <form onSubmit={handleEnroll} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Seleccionar Estudiante</label>
-              <select
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={enrollment.estudiante_id}
-                onChange={(e) => setEnrollment({ ...enrollment, estudiante_id: e.target.value })}
-              >
-                <option value="">-- Elige un estudiante --</option>
-                {estudiantes.map((est) => (
-                  <option key={est.id} value={est.id}>
-                    {est.name} ({est.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Seleccionar Curso</label>
-              <select
-                required
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
-                value={enrollment.curso_id}
-                onChange={(e) => setEnrollment({ ...enrollment, curso_id: e.target.value })}
-              >
-                <option value="">-- Elige un curso --</option>
-                {cursos.map((cur) => (
-                  <option key={cur.id} value={cur.id}>
-                    [{cur.code}] {cur.name} ({cur.credits} cr.)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting || !enrollment.estudiante_id || !enrollment.curso_id}
-              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-750 py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
-            >
-              Realizar Inscripción
-            </button>
-          </form>
-        </section>
-      </div>
-
-      {/* Listas y Relación N:M Activa */}
-      <div className="grid gap-6 mt-6 lg:grid-cols-[1fr_2fr]">
-        {/* Catálogo de Cursos */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4">
-            Catálogo de Cursos ({cursos.length})
-          </h3>
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-            {cursos.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-55/30 p-3">
-                <div>
-                  <span className="rounded-md bg-violet-50 px-1.5 py-0.5 text-xs font-bold text-violet-750 border border-violet-100 uppercase tracking-wide">
-                    {c.code}
-                  </span>
-                  <h4 className="mt-1 font-semibold text-zinc-950 text-sm">{c.name}</h4>
-                </div>
-                <span className="text-xs font-bold text-zinc-500">{c.credits} créditos</span>
+      <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
+        
+        {/* Formularios de gestión (Columna izquierda) */}
+        <div className="space-y-6">
+          
+          {/* Registrar Amenidad */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
+              ✨ Crear Amenidad
+            </h3>
+            <form onSubmit={handleCreateAmenity} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Nombre de la Amenidad</label>
+                <input
+                  type="text"
+                  placeholder="Ej. WiFi gratis, Pet Friendly"
+                  required
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  value={newAmenity.name}
+                  onChange={(e) => setNewAmenity({ ...newAmenity, name: e.target.value })}
+                />
               </div>
-            ))}
-            {cursos.length === 0 && (
-              <p className="py-8 text-center text-xs text-zinc-400 italic">No hay cursos registrados.</p>
-            )}
-          </div>
-        </section>
 
-        {/* Inscripciones N:M Estudiantes <-> Cursos */}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Descripción (Opcional)</label>
+                <textarea
+                  placeholder="Ej. Red inalámbrica de alta velocidad para clientes..."
+                  rows={2}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100 resize-none"
+                  value={newAmenity.description}
+                  onChange={(e) => setNewAmenity({ ...newAmenity, description: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full rounded-xl bg-[#f15a24] hover:bg-[#e04f1c] py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+              >
+                Registrar Amenidad
+              </button>
+            </form>
+          </section>
+
+          {/* Asociar Amenidad a Restaurante */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h3 className="text-base font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4 flex items-center gap-2">
+              🔗 Asociar a Restaurante (Unión N:M)
+            </h3>
+            <form onSubmit={handleLink} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Seleccionar Restaurante</label>
+                <select
+                  required
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  value={linkForm.restaurant_id}
+                  onChange={(e) => setLinkForm({ ...linkForm, restaurant_id: e.target.value })}
+                >
+                  <option value="">-- Elige un restaurante --</option>
+                  {restaurants.map((rest) => (
+                    <option key={rest.id} value={rest.id}>
+                      {rest.name} ({rest.cuisine})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Seleccionar Amenidad</label>
+                <select
+                  required
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-950 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
+                  value={linkForm.amenity_id}
+                  onChange={(e) => setLinkForm({ ...linkForm, amenity_id: e.target.value })}
+                >
+                  <option value="">-- Elige una amenidad --</option>
+                  {amenities.map((am) => (
+                    <option key={am.id} value={am.id}>
+                      {am.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting || !linkForm.restaurant_id || !linkForm.amenity_id}
+                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-750 py-2.5 text-sm font-semibold text-white transition shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+              >
+                Vincular Amenidad
+              </button>
+            </form>
+          </section>
+
+          {/* Catálogo de Amenidades */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4">
+              Catálogo de Amenidades ({amenities.length})
+            </h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {amenities.map((am) => (
+                <div key={am.id} className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-3">
+                  <h4 className="font-bold text-zinc-950 text-sm">{am.name}</h4>
+                  {am.description && <p className="text-xs text-zinc-500 mt-1">{am.description}</p>}
+                </div>
+              ))}
+              {amenities.length === 0 && (
+                <p className="py-8 text-center text-xs text-zinc-400 italic">No hay amenidades registradas.</p>
+              )}
+            </div>
+          </section>
+
+        </div>
+
+        {/* Listas y Relación N:M Activa (Columna derecha) */}
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm h-fit">
           <h3 className="font-bold text-zinc-950 border-b border-zinc-100 pb-3 mb-4">
-            Matrícula de Estudiantes e Inscripciones Activas
+            Relación Muchos a Muchos: Amenidades por Restaurante
           </h3>
 
           {loading ? (
-            <div className="py-12 text-center text-sm text-zinc-500">Cargando matrícula...</div>
+            <div className="py-12 text-center text-sm text-zinc-500">Cargando datos relacionales...</div>
           ) : (
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-              {estudiantes.map((est) => (
-                <div key={est.id} className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3 hover:shadow-xs transition">
+            <div className="space-y-4 max-h-[700px] overflow-y-auto pr-1">
+              {restaurants.map((rest) => (
+                <div key={rest.id} className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3 hover:shadow-xs transition">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-bold text-zinc-950 text-sm">{est.name}</h4>
-                      <p className="text-xs text-zinc-500">{est.email}</p>
+                      <h4 className="font-bold text-zinc-950 text-sm">{rest.name}</h4>
+                      <p className="text-xs text-zinc-500">{rest.cuisine} · {rest.address}</p>
                     </div>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
-                      ID: {est.id.slice(0, 8)}...
-                    </span>
                   </div>
 
-                  {/* Listado de cursos inscritos en N:M */}
+                  {/* Listado de amenidades en N:M */}
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Cursos inscritos ({est.cursos?.length || 0}):</p>
-                    {est.cursos && est.cursos.length > 0 ? (
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Amenidades activas ({rest.amenities?.length || 0}):</p>
+                    {rest.amenities && rest.amenities.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {est.cursos.map((c) => (
-                          <div key={c.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2.5 py-1 text-xs font-medium text-emerald-850">
-                            <span>[{c.code}] {c.name}</span>
+                        {rest.amenities.map((am) => (
+                          <div key={am.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2.5 py-1 text-xs font-medium text-emerald-850">
+                            <span>{am.name}</span>
                             <button
-                              onClick={() => handleUnenroll(est.id, c.id)}
+                              onClick={() => handleUnlink(rest.id, am.id)}
                               className="rounded-full p-0.5 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-700 cursor-pointer"
-                              title="Dar de baja"
+                              title="Remover"
                               type="button"
                             >
                               ❌
@@ -346,17 +265,18 @@ export default function AdminAcademicPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-zinc-400 italic">Este estudiante no está inscrito en ninguna materia.</p>
+                      <p className="text-xs text-zinc-400 italic">Este local no tiene amenidades registradas.</p>
                     )}
                   </div>
                 </div>
               ))}
-              {estudiantes.length === 0 && (
-                <p className="py-12 text-center text-sm text-zinc-500">No hay estudiantes registrados.</p>
+              {restaurants.length === 0 && (
+                <p className="py-12 text-center text-sm text-zinc-500">No hay restaurantes registrados.</p>
               )}
             </div>
           )}
         </section>
+
       </div>
     </>
   )

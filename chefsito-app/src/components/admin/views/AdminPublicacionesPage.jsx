@@ -192,7 +192,7 @@ export default function AdminPublicacionesPage() {
                   
                   <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-zinc-500">
                     <span>Autor: <span className="text-zinc-750 font-bold">{p.author_name}</span></span>
-                    <span className="rounded-md bg-violet-50 px-1.5 py-0.5 text-violet-700 ring-1 ring-violet-200/50 capitalize text-[10px]">
+                    <span className="rounded-md bg-orange-50 px-1.5 py-0.5 text-orange-700 ring-1 ring-orange-200/50 capitalize text-[10px]">
                       {p.author_role}
                     </span>
                   </div>

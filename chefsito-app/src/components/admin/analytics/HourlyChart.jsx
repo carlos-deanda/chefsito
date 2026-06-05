@@ -29,7 +29,7 @@ export default function HourlyChart({ hours = [] }) {
                   className={`w-full max-w-8 rounded-t-lg transition-all ${
                     isPeak
                       ? 'bg-gradient-to-t from-orange-600 to-orange-400 shadow-md shadow-orange-200'
-                      : 'bg-gradient-to-t from-violet-300 to-violet-200 group-hover:from-violet-400 group-hover:to-violet-300'
+                      : 'bg-gradient-to-t from-orange-200 to-orange-100 group-hover:from-orange-300 group-hover:to-orange-200'
                   }`}
                   style={{ height: `${height}%` }}
                   title={`${row.hour}:00 — ${row.entries} turnos`}
