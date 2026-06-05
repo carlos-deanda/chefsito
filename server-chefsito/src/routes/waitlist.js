@@ -384,4 +384,68 @@ router.delete('/:id/remove', validateToken, requireRoles('recepcionista', 'geren
   }
 })
 
+router.post('/:id/no-show', validateToken, requireRoles('recepcionista', 'gerente'), async (req, res) => {
+  try {
+    const entryResult = await query(
+      `SELECT restaurant_id, position FROM waitlist_entries WHERE id = $1 AND status = 'called'`,
+      [req.params.id],
+    )
+
+    const entry = entryResult.rows[0]
+
+    if (!entry) {
+      return res.status(404).json({ message: 'Turno no encontrado o no está llamado' })
+    }
+
+    const allowed = await assertRestaurantAccess(req.user.id, req.user.role, entry.restaurant_id)
+
+    if (!allowed) {
+      return res.status(403).json({ message: 'Sin acceso a este restaurante' })
+    }
+
+    const result = await query(
+      `UPDATE waitlist_entries
+       SET status = 'no_show'
+       WHERE id = $1 AND status = 'called'
+       RETURNING id, restaurant_id, position, status`,
+      [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'El turno no se puede marcar como no-show' })
+    }
+
+    const { restaurant_id, position } = result.rows[0]
+    await query(
+      `UPDATE waitlist_entries
+       SET position = position - 1
+       WHERE restaurant_id = $1 AND status IN ('waiting', 'called') AND position > $2`,
+      [restaurant_id, position],
+    )
+
+    const restNameRes = await query(
+      `SELECT r.name, w.user_id FROM waitlist_entries w JOIN restaurants r ON r.id = w.restaurant_id WHERE w.id = $1`,
+      [req.params.id]
+    )
+    const restName = restNameRes.rows[0]?.name || 'el restaurante'
+    const guestUserId = restNameRes.rows[0]?.user_id
+    await addNotification(
+      guestUserId,
+      result.rows[0].id,
+      'push',
+      `Tu turno en ${restName} ha sido marcado como No Show (inasistencia).`
+    )
+
+    const io = req.app.get('io')
+    if (io) {
+      io.emit('waitlist:changed', { restaurant_id })
+    }
+
+    return res.json(result.rows[0])
+  } catch (error) {
+    console.error('waitlist no-show', error)
+    return res.status(500).json({ message: 'Error al registrar inasistencia' })
+  }
+})
+
 export default router
