@@ -1,0 +1,183 @@
+classDiagram
+    direction LR
+
+    class RolePermission {
+        +user_role role
+        +boolean can_manage_platform
+        +boolean can_manage_restaurant
+        +boolean can_manage_waitlist
+        +boolean can_join_waitlist
+        +boolean can_view_analytics
+        +text description
+        +authorizeRole()
+    }
+
+    class User {
+        +uuid id
+        +varchar name
+        +varchar email
+        +varchar phone
+        +varchar password_hash
+        +user_role role
+        +boolean is_active
+        +timestamptz created_at
+        +timestamptz updated_at
+        +register()
+        +login()
+        +getMe()
+        +createStaffUser()
+        +updateStaffUser()
+        +toggleActive()
+    }
+
+    class UserProfile {
+        +uuid user_id
+        +text bio
+        +varchar avatar_url
+        +jsonb preferences
+        +timestamptz updated_at
+        +getProfile()
+        +upsertProfile()
+    }
+
+    class RefreshToken {
+        +uuid id
+        +uuid user_id
+        +varchar token_hash
+        +timestamptz expires_at
+        +timestamptz created_at
+        +createToken()
+        +expireToken()
+    }
+
+    class Restaurant {
+        +uuid id
+        +varchar name
+        +varchar cuisine
+        +varchar address
+        +numeric lat
+        +numeric lng
+        +int table_count
+        +restaurant_status status
+        +int estimated_wait_minutes
+        +uuid manager_id
+        +timestamptz created_at
+        +timestamptz updated_at
+        +listNearby()
+        +getAssigned()
+        +createRestaurant()
+        +updateRestaurant()
+        +deleteRestaurant()
+        +updateStatus()
+        +listWaitlist()
+    }
+
+    class RestaurantStaff {
+        +uuid id
+        +uuid restaurant_id
+        +uuid user_id
+        +timestamptz assigned_at
+        +assignStaff()
+        +getStaffRestaurantId()
+        +assertRestaurantAccess()
+    }
+
+    class WaitlistEntry {
+        +uuid id
+        +uuid restaurant_id
+        +uuid user_id
+        +int party_size
+        +waitlist_status status
+        +int position
+        +timestamptz registered_at
+        +timestamptz called_at
+        +timestamptz arrived_at
+        +timestamptz cancelled_at
+        +joinWaitlist()
+        +getMyTurn()
+        +callTurn()
+        +confirmArrival()
+        +markArrived()
+        +cancelTurn()
+        +removeTurn()
+        +markNoShow()
+    }
+
+    class Notification {
+        +uuid id
+        +uuid waitlist_entry_id
+        +uuid user_id
+        +varchar channel
+        +text message
+        +varchar status
+        +timestamptz sent_at
+        +addNotification()
+        +listNotifications()
+    }
+
+    class DailyAnalytics {
+        +uuid id
+        +uuid restaurant_id
+        +date report_date
+        +int total_entries
+        +int no_shows
+        +int avg_wait_minutes
+        +smallint peak_hour
+        +getDailyAnalytics()
+    }
+
+    class HourlyAnalytics {
+        +uuid id
+        +uuid restaurant_id
+        +date report_date
+        +smallint hour
+        +int entries
+        +getHourlyAnalytics()
+    }
+
+    class Publicacion {
+        +uuid id
+        +uuid user_id
+        +varchar title
+        +text content
+        +timestamptz created_at
+        +listPublicaciones()
+        +createPublicacion()
+        +updatePublicacion()
+        +deletePublicacion()
+    }
+
+    class Amenity {
+        +uuid id
+        +varchar name
+        +text description
+        +listAmenities()
+        +createAmenity()
+        +updateAmenity()
+        +deleteAmenity()
+        +listRestaurantsWithAmenities()
+    }
+
+    class RestaurantAmenity {
+        +uuid restaurant_id
+        +uuid amenity_id
+        +timestamptz linked_at
+        +linkAmenity()
+        +unlinkAmenity()
+    }
+
+    RolePermission "1" --> "0..*" User : role
+    User "1" --> "1" UserProfile : profile
+    User "1" --> "0..*" RefreshToken : tokens
+    User "1" --> "0..*" Publicacion : publicaciones
+    User "0..1" --> "0..*" Restaurant : manager
+    User "1" --> "0..*" RestaurantStaff : staffLink
+    Restaurant "1" --> "0..*" RestaurantStaff : staff
+    Restaurant "1" --> "0..*" WaitlistEntry : waitlist
+    User "1" --> "0..*" WaitlistEntry : turns
+    WaitlistEntry "0..1" --> "0..*" Notification : notifications
+    User "1" --> "0..*" Notification : receives
+    Restaurant "1" --> "0..*" DailyAnalytics : daily
+    Restaurant "1" --> "0..*" HourlyAnalytics : hourly
+    Restaurant "1" --> "0..*" RestaurantAmenity : amenitiesLink
+    Amenity "1" --> "0..*" RestaurantAmenity : restaurantLink
