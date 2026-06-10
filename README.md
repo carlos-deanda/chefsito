@@ -1,5 +1,7 @@
 # Chefsito 🍽️
 
+Video Demo: youtube.com/watch?v=G8BBqBVzlAM&feature=youtu.be
+
 Plataforma inteligente y reactiva de filas de espera en tiempo real diseñada para optimizar los tiempos de espera en restaurantes y locales gastronómicos, reduciendo las aglomeraciones físicas y mejorando la experiencia de servicio de los comensales.
 
 ---
